@@ -2,6 +2,7 @@ import type {
   CreateProjectInput,
   LogDetail,
   LogListResponse,
+  MutationResult,
   Project,
   ProjectsResponse,
   StatsResponse,
@@ -89,6 +90,19 @@ export function createProject(input: CreateProjectInput) {
   });
 }
 
+export function updateProject(currentSlug: string, input: CreateProjectInput) {
+  return request<Project>(buildApiUrl(`/api/projects/${currentSlug}`), {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteProject(slug: string) {
+  return request<MutationResult>(buildApiUrl(`/api/projects/${slug}`), {
+    method: "DELETE",
+  });
+}
+
 export function listLogs(filters: {
   project?: string;
   method?: string;
@@ -101,6 +115,18 @@ export function listLogs(filters: {
 
 export function getLog(id: string) {
   return request<LogDetail>(buildApiUrl(`/api/logs/${id}`));
+}
+
+export function deleteLog(id: string) {
+  return request<MutationResult>(buildApiUrl(`/api/logs/${id}`), {
+    method: "DELETE",
+  });
+}
+
+export function clearLogs(project?: string) {
+  return request<MutationResult>(buildApiUrl("/api/logs", { project }), {
+    method: "DELETE",
+  });
 }
 
 export function getStats(project?: string) {

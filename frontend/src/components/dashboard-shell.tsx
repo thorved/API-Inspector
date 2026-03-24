@@ -3,7 +3,6 @@
 import JsonView from "@uiw/react-json-view";
 import { darkTheme as jsonDarkTheme } from "@uiw/react-json-view/dark";
 import { lightTheme as jsonLightTheme } from "@uiw/react-json-view/light";
-import Link from "next/link";
 import {
   startTransition,
   useDeferredValue,
@@ -14,11 +13,15 @@ import {
 
 import {
   buildApiUrl,
+  clearLogs,
   createProject,
+  deleteLog,
+  deleteProject,
   getLog,
   getStats,
   listLogs,
   listProjects,
+  updateProject,
 } from "@/lib/api";
 import type {
   CreateProjectInput,
@@ -89,9 +92,10 @@ export function DashboardShell({
   const [status, setStatus] = useState("");
   const [nextCursor, setNextCursor] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [isCreating, setIsCreating] = useState(false);
+  const [isSavingProject, setIsSavingProject] = useState(false);
+  const [isClearingLogs, setIsClearingLogs] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [liveFeed, setLiveFeed] = useState<LogSummary[]>([]);
+  const [_liveFeed, setLiveFeed] = useState<LogSummary[]>([]);
   const [view, setView] = useState<"overview" | "projects">(initialView);
   const [form, setForm] = useState<CreateProjectInput>({
     name: "",
@@ -99,6 +103,9 @@ export function DashboardShell({
     baseUrl: "",
   });
   const [theme, setTheme] = useState<WorkspaceTheme>("light");
+  const [editingProjectSlug, setEditingProjectSlug] = useState("");
+  const [deletingProjectSlug, setDeletingProjectSlug] = useState("");
+  const [deletingLogID, setDeletingLogID] = useState("");
   const deferredSearch = useDeferredValue(search);
 
   const selectedProjectRecord = useMemo(
@@ -288,25 +295,115 @@ export function DashboardShell({
     };
   }, [deferredSearch, method, selectedProject, status]);
 
-  async function handleCreateProject(event: React.FormEvent<HTMLFormElement>) {
+  async function reloadProjects() {
+    const payload = await listProjects();
+    setProjects(payload.items);
+    return payload.items;
+  }
+
+  async function reloadTraffic(projectSlug: string) {
+    if (!projectSlug) {
+      setLogs([]);
+      setStats(emptyStats);
+      setNextCursor("");
+      setDetail(null);
+      return;
+    }
+
+    const [logsPayload, statsPayload] = await Promise.all([
+      listLogs({
+        project: projectSlug,
+        method: method === "ALL" ? "" : method,
+        status,
+        search: deferredSearch,
+      }),
+      getStats(projectSlug),
+    ]);
+
+    setLogs(logsPayload.items);
+    setNextCursor(logsPayload.nextCursor ?? "");
+    setStats(statsPayload);
+  }
+
+  async function handleSubmitProject(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setIsCreating(true);
+    setIsSavingProject(true);
 
     try {
-      const created = await createProject(form);
-      const projectsPayload = await listProjects();
+      const saved = editingProjectSlug
+        ? await updateProject(editingProjectSlug, form)
+        : await createProject(form);
+      const projectsPayload = await reloadProjects();
       setForm({ name: "", slug: "", baseUrl: "" });
-      setProjects(projectsPayload.items);
+      setEditingProjectSlug("");
+      setProjects(projectsPayload);
       setErrorMessage("");
       startTransition(() => {
         setView("overview");
-        setSelectedProject(created.slug);
-        updateQuery({ project: created.slug, log: "" });
+        setSelectedProject(saved.slug);
+        setSelectedLog("");
+        updateQuery({ project: saved.slug, log: "" });
       });
     } catch (error) {
       setErrorMessage(toMessage(error));
     } finally {
-      setIsCreating(false);
+      setIsSavingProject(false);
+    }
+  }
+
+  function handleEditProject(project: Project) {
+    setForm({
+      name: project.name,
+      slug: project.slug,
+      baseUrl: project.baseUrl,
+    });
+    setEditingProjectSlug(project.slug);
+    setView("projects");
+    setErrorMessage("");
+  }
+
+  function handleCancelProjectEdit() {
+    setForm({ name: "", slug: "", baseUrl: "" });
+    setEditingProjectSlug("");
+  }
+
+  async function handleDeleteProject(slug: string) {
+    if (!window.confirm("Delete this project and all of its captured logs?")) {
+      return;
+    }
+
+    setDeletingProjectSlug(slug);
+    try {
+      await deleteProject(slug);
+      const nextProjects = await reloadProjects();
+      setLiveFeed((current) =>
+        current.filter((item) => item.projectSlug !== slug),
+      );
+
+      if (editingProjectSlug === slug) {
+        handleCancelProjectEdit();
+      }
+
+      if (selectedProject === slug) {
+        const nextProject = nextProjects[0]?.slug ?? "";
+        setSelectedProject(nextProject);
+        setSelectedLog("");
+        setDetail(null);
+        updateQuery({ project: nextProject, log: "" });
+        if (nextProject) {
+          await reloadTraffic(nextProject);
+        } else {
+          setLogs([]);
+          setStats(emptyStats);
+          setNextCursor("");
+        }
+      }
+
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage(toMessage(error));
+    } finally {
+      setDeletingProjectSlug("");
     }
   }
 
@@ -323,6 +420,52 @@ export function DashboardShell({
       setSelectedLog(logId);
       updateQuery({ project: selectedProject, log: logId });
     });
+  }
+
+  async function handleDeleteLog(logId: string) {
+    if (!window.confirm("Remove this captured request?")) {
+      return;
+    }
+
+    setDeletingLogID(logId);
+    try {
+      await deleteLog(logId);
+      setLiveFeed((current) => current.filter((item) => item.id !== logId));
+      if (selectedLog === logId) {
+        setSelectedLog("");
+        setDetail(null);
+        updateQuery({ project: selectedProject, log: "" });
+      }
+      await reloadTraffic(selectedProject);
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage(toMessage(error));
+    } finally {
+      setDeletingLogID("");
+    }
+  }
+
+  async function handleClearCapturedRequests() {
+    if (!window.confirm("Clear all captured requests for this project?")) {
+      return;
+    }
+
+    setIsClearingLogs(true);
+    try {
+      await clearLogs(selectedProject);
+      setSelectedLog("");
+      setDetail(null);
+      setLiveFeed((current) =>
+        current.filter((item) => item.projectSlug !== selectedProject),
+      );
+      updateQuery({ project: selectedProject, log: "" });
+      await reloadTraffic(selectedProject);
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage(toMessage(error));
+    } finally {
+      setIsClearingLogs(false);
+    }
   }
 
   async function handleLoadMore() {
@@ -345,12 +488,19 @@ export function DashboardShell({
   return (
     <div
       className={
-        view === "overview" ? `inspector-page theme-${theme}` : "clean-page"
+        view === "overview"
+          ? `inspector-page theme-${theme} h-screen overflow-hidden`
+          : "clean-page"
       }
     >
-      <div className="mx-auto flex min-h-screen w-full max-w-none flex-col gap-6 px-4 py-4 sm:px-5 lg:px-6">
+      <div
+        className={`mx-auto flex w-full max-w-none flex-col gap-6 px-4 py-4 sm:px-5 lg:px-6 ${
+          view === "overview" ? "h-screen overflow-hidden" : "min-h-screen"
+        }`}
+      >
         <nav className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
+            <div className="badge">ProxyLens</div>
             <button
               className={
                 view === "overview" ? "tab-button active" : "tab-button"
@@ -369,11 +519,8 @@ export function DashboardShell({
             >
               Projects
             </button>
-            <Link className="tab-button" href="/projects">
-              Projects page
-            </Link>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               className={theme === "light" ? "tab-button active" : "tab-button"}
               onClick={() => setTheme("light")}
@@ -400,12 +547,18 @@ export function DashboardShell({
         {view === "projects" ? (
           <section className="grid gap-6 lg:grid-cols-[1fr_1.1fr]">
             <ProjectForm
+              editingProjectSlug={editingProjectSlug}
               form={form}
-              isCreating={isCreating}
+              isSavingProject={isSavingProject}
+              onCancelEdit={handleCancelProjectEdit}
               onChange={setForm}
-              onSubmit={handleCreateProject}
+              onSubmit={handleSubmitProject}
             />
             <ProjectList
+              deletingProjectSlug={deletingProjectSlug}
+              onDeleteProject={handleDeleteProject}
+              onEditProject={handleEditProject}
+              onOpenDashboard={() => setView("overview")}
               projects={projects}
               selectedProject={selectedProject}
               onSelectProject={handleProjectChange}
@@ -424,7 +577,19 @@ export function DashboardShell({
                       {logs.length} request{logs.length === 1 ? "" : "s"}
                     </div>
                   </div>
-                  {isLoading ? <span className="pulse-dot" /> : null}
+                  <div className="flex items-center gap-2">
+                    {logs.length ? (
+                      <button
+                        className="inspector-icon-button"
+                        disabled={isClearingLogs}
+                        onClick={() => void handleClearCapturedRequests()}
+                        type="button"
+                      >
+                        {isClearingLogs ? "..." : "Clear"}
+                      </button>
+                    ) : null}
+                    {isLoading ? <span className="pulse-dot" /> : null}
+                  </div>
                 </div>
                 <div className="mt-3 space-y-2">
                   <select
@@ -476,41 +641,55 @@ export function DashboardShell({
                 </div>
               </div>
 
-              <div className="min-h-0 flex-1 overflow-y-auto">
+              <div className="inspector-sidebar-list">
                 {logs.length ? (
                   logs.map((log) => (
-                    <button
+                    <div
                       className={`sidebar-request ${
                         selectedLog === log.id ? "active" : ""
                       }`}
                       key={log.id}
-                      onClick={() => handleSelectLog(log.id)}
-                      type="button"
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <span className="method-pill">{log.method}</span>
-                        <span className="text-xs inspector-muted">
-                          {formatTime(log.createdAt)}
-                        </span>
+                      <div className="flex items-start gap-3">
+                        <button
+                          className="min-w-0 flex-1 text-left"
+                          onClick={() => handleSelectLog(log.id)}
+                          type="button"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <span className="method-pill">{log.method}</span>
+                            <span className="text-xs inspector-muted">
+                              {formatTime(log.createdAt)}
+                            </span>
+                          </div>
+                          <div className="mt-3 text-left">
+                            <div className="truncate font-medium inspector-strong">
+                              {log.path}
+                            </div>
+                            <div className="mt-1 truncate text-xs inspector-muted">
+                              {log.fullUrl}
+                            </div>
+                          </div>
+                          <div className="mt-3 flex items-center justify-between gap-3">
+                            <StatusBadge
+                              status={log.responseStatus}
+                              hasError={log.hasError}
+                            />
+                            <span className="text-xs inspector-soft">
+                              {log.durationMs} ms
+                            </span>
+                          </div>
+                        </button>
+                        <button
+                          className="inspector-icon-button mt-0.5"
+                          disabled={deletingLogID === log.id}
+                          onClick={() => void handleDeleteLog(log.id)}
+                          type="button"
+                        >
+                          {deletingLogID === log.id ? "..." : "×"}
+                        </button>
                       </div>
-                      <div className="mt-3 text-left">
-                        <div className="truncate font-medium inspector-strong">
-                          {log.path}
-                        </div>
-                        <div className="mt-1 truncate text-xs inspector-muted">
-                          {log.fullUrl}
-                        </div>
-                      </div>
-                      <div className="mt-3 flex items-center justify-between gap-3">
-                        <StatusBadge
-                          status={log.responseStatus}
-                          hasError={log.hasError}
-                        />
-                        <span className="text-xs inspector-soft">
-                          {log.durationMs} ms
-                        </span>
-                      </div>
-                    </button>
+                    </div>
                   ))
                 ) : (
                   <div className="px-4 py-6 text-sm inspector-muted">
@@ -521,25 +700,6 @@ export function DashboardShell({
               </div>
 
               <div className="inspector-sidebar-bottom">
-                <div className="flex items-center justify-between text-xs uppercase tracking-[0.16em] inspector-muted">
-                  <span>Live feed</span>
-                  <span>{liveFeed.length}</span>
-                </div>
-                <div className="mt-3 space-y-2">
-                  {liveFeed.slice(0, 3).map((item) => (
-                    <button
-                      className="sidebar-mini"
-                      key={item.id}
-                      onClick={() => handleSelectLog(item.id)}
-                      type="button"
-                    >
-                      <span className="method-pill">{item.method}</span>
-                      <span className="truncate text-left text-sm inspector-soft">
-                        {item.path}
-                      </span>
-                    </button>
-                  ))}
-                </div>
                 {nextCursor ? (
                   <button
                     className="secondary-button mt-3 w-full"
@@ -579,13 +739,25 @@ export function DashboardShell({
                     <span>{stats.totalRequests} total</span>
                     <span>{stats.errorCount} errors</span>
                     <span>{Math.round(stats.averageLatencyMs)} ms avg</span>
+                    {detail ? (
+                      <button
+                        className="inspector-icon-button"
+                        disabled={deletingLogID === detail.id}
+                        onClick={() => void handleDeleteLog(detail.id)}
+                        type="button"
+                      >
+                        {deletingLogID === detail.id
+                          ? "Removing..."
+                          : "Remove request"}
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               </div>
 
-              <div className="min-h-[60vh] px-4 py-4 sm:px-5 sm:py-5">
+              <div className="inspector-pane-body px-4 py-4 sm:px-5 sm:py-5">
                 {detail ? (
-                  <div className="space-y-5">
+                  <div className="space-y-4">
                     <section className="inspector-section">
                       <SectionLabel title="Request details & headers" />
                       <div className="inspector-two-col mt-3">
@@ -628,10 +800,12 @@ export function DashboardShell({
                                 value: detail.userAgent || "-",
                               },
                             ]}
+                            compact
                           />
                         </div>
                         <div className="inspector-panel">
                           <KeyValueRows
+                            compact
                             items={toKeyValueRows(detail.request.headers)}
                             emptyLabel="No request headers"
                             mono
@@ -646,6 +820,7 @@ export function DashboardShell({
                           <SectionLabel title="Query strings" />
                           <div className="mt-3">
                             <KeyValueRows
+                              compact
                               items={toKeyValueRows(detail.request.query)}
                               emptyLabel="None"
                               mono
@@ -656,6 +831,7 @@ export function DashboardShell({
                           <SectionLabel title="Response headers" />
                           <div className="mt-3">
                             <KeyValueRows
+                              compact
                               items={toKeyValueRows(detail.response.headers)}
                               emptyLabel="No response headers"
                               mono
@@ -703,21 +879,29 @@ export function DashboardShell({
 }
 
 function ProjectForm({
+  editingProjectSlug,
   form,
-  isCreating,
+  isSavingProject,
+  onCancelEdit,
   onChange,
   onSubmit,
 }: {
+  editingProjectSlug: string;
   form: CreateProjectInput;
-  isCreating: boolean;
+  isSavingProject: boolean;
+  onCancelEdit: () => void;
   onChange: (value: CreateProjectInput) => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
 }) {
+  const isEditing = editingProjectSlug !== "";
+
   return (
     <section className="glass-panel p-6">
-      <div className="badge">Create project</div>
+      <div className="badge">
+        {isEditing ? "Edit project" : "Create project"}
+      </div>
       <h2 className="mt-4 text-2xl font-semibold tracking-[-0.04em] text-slate-950">
-        Add a target API
+        {isEditing ? "Update target API" : "Add a target API"}
       </h2>
       <p className="mt-2 text-sm text-slate-400">
         Each project gets a readable slug and its own proxy URL.
@@ -756,19 +940,48 @@ function ProjectForm({
             value={form.baseUrl}
           />
         </label>
-        <button className="primary-button" disabled={isCreating} type="submit">
-          {isCreating ? "Creating..." : "Create project"}
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            className="primary-button"
+            disabled={isSavingProject}
+            type="submit"
+          >
+            {isSavingProject
+              ? isEditing
+                ? "Saving..."
+                : "Creating..."
+              : isEditing
+                ? "Save changes"
+                : "Create project"}
+          </button>
+          {isEditing ? (
+            <button
+              className="secondary-button"
+              onClick={onCancelEdit}
+              type="button"
+            >
+              Cancel
+            </button>
+          ) : null}
+        </div>
       </form>
     </section>
   );
 }
 
 function ProjectList({
+  deletingProjectSlug,
+  onDeleteProject,
+  onEditProject,
+  onOpenDashboard,
   projects,
   selectedProject,
   onSelectProject,
 }: {
+  deletingProjectSlug: string;
+  onDeleteProject: (slug: string) => Promise<void>;
+  onEditProject: (project: Project) => void;
+  onOpenDashboard: () => void;
   projects: Project[];
   selectedProject: string;
   onSelectProject: (slug: string) => void;
@@ -782,34 +995,63 @@ function ProjectList({
             Configured upstreams
           </h2>
         </div>
-        <Link className="secondary-button" href="/dashboard">
+        <button
+          className="secondary-button"
+          onClick={onOpenDashboard}
+          type="button"
+        >
           Open dashboard
-        </Link>
+        </button>
       </div>
       <div className="mt-6 space-y-4">
         {projects.length ? (
           projects.map((project) => (
-            <button
+            <div
               className={`project-card ${selectedProject === project.slug ? "selected" : ""}`}
               key={project.id}
-              onClick={() => onSelectProject(project.slug)}
-              type="button"
             >
-              <div>
-                <div className="text-lg font-medium text-slate-950">
-                  {project.name}
+              <button
+                className="w-full text-left"
+                onClick={() => onSelectProject(project.slug)}
+                type="button"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-lg font-medium text-slate-950">
+                      {project.name}
+                    </div>
+                    <div className="mt-1 font-mono text-sm text-slate-700">
+                      /proxy/{project.slug}/*path
+                    </div>
+                  </div>
+                  <div className="text-right text-sm text-slate-400">
+                    <div>{project.baseUrl}</div>
+                    <div className="mt-1">
+                      {project.isActive ? "Active" : "Inactive"}
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-1 font-mono text-sm text-slate-700">
-                  /proxy/{project.slug}/*path
-                </div>
+              </button>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  className="secondary-button"
+                  onClick={() => onEditProject(project)}
+                  type="button"
+                >
+                  Edit
+                </button>
+                <button
+                  className="danger-button"
+                  disabled={deletingProjectSlug === project.slug}
+                  onClick={() => void onDeleteProject(project.slug)}
+                  type="button"
+                >
+                  {deletingProjectSlug === project.slug
+                    ? "Deleting..."
+                    : "Delete"}
+                </button>
               </div>
-              <div className="text-right text-sm text-slate-400">
-                <div>{project.baseUrl}</div>
-                <div className="mt-1">
-                  {project.isActive ? "Active" : "Inactive"}
-                </div>
-              </div>
-            </button>
+            </div>
           ))
         ) : (
           <p className="text-sm text-slate-400">
@@ -845,30 +1087,113 @@ function KeyValueRows({
   items,
   emptyLabel = "None",
   mono = false,
+  compact = false,
 }: {
   items: Array<{ label: string; value: string; mono?: boolean }>;
   emptyLabel?: string;
   mono?: boolean;
+  compact?: boolean;
 }) {
+  const [expandedItem, setExpandedItem] = useState<{
+    label: string;
+    value: string;
+    mono: boolean;
+  } | null>(null);
+
   if (!items.length) {
     return <div className="inspector-empty-row">{emptyLabel}</div>;
   }
 
   return (
-    <div className="space-y-px overflow-hidden rounded-lg border inspector-border">
-      {items.map((item) => (
-        <div className="inspector-kv-row" key={`${item.label}-${item.value}`}>
-          <div className="inspector-kv-label">{item.label}</div>
+    <>
+      <div className="space-y-px overflow-hidden rounded-lg border inspector-border">
+        {items.map((item) => {
+          const shouldExpand =
+            item.value.length > 120 || item.value.includes("\n");
+          const rowMono = mono || item.mono === true;
+
+          return (
+            <div
+              className={`inspector-kv-row ${compact ? "compact" : ""}`}
+              key={`${item.label}-${item.value}`}
+            >
+              <div className="inspector-kv-label">{item.label}</div>
+              <div className="flex min-w-0 items-center gap-2">
+                <div
+                  className={`inspector-kv-value ${
+                    rowMono ? "font-mono" : ""
+                  } ${compact ? "truncate" : ""}`}
+                  title={compact ? item.value : undefined}
+                >
+                  {item.value}
+                </div>
+                {shouldExpand ? (
+                  <button
+                    className="inspector-expand-button"
+                    onClick={() =>
+                      setExpandedItem({
+                        label: item.label,
+                        value: item.value,
+                        mono: rowMono,
+                      })
+                    }
+                    type="button"
+                  >
+                    Expand
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {expandedItem ? (
+        <div className="inspector-modal-backdrop">
+          <button
+            aria-label="Close expanded value"
+            className="inspector-modal-dismiss"
+            onClick={() => setExpandedItem(null)}
+            type="button"
+          />
           <div
-            className={`inspector-kv-value ${
-              mono || item.mono ? "font-mono" : ""
-            }`}
+            className="inspector-modal"
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                setExpandedItem(null);
+              }
+            }}
+            role="dialog"
+            tabIndex={-1}
           >
-            {item.value}
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.18em] inspector-muted">
+                  {expandedItem.label}
+                </div>
+                <div className="mt-1 text-sm font-semibold inspector-strong">
+                  Full value
+                </div>
+              </div>
+              <button
+                className="inspector-icon-button"
+                onClick={() => setExpandedItem(null)}
+                type="button"
+              >
+                Close
+              </button>
+            </div>
+            <pre
+              className={`inspector-code mt-4 max-h-[60vh] ${
+                expandedItem.mono ? "font-mono" : ""
+              }`}
+            >
+              {expandedItem.value}
+            </pre>
           </div>
         </div>
-      ))}
-    </div>
+      ) : null}
+    </>
   );
 }
 

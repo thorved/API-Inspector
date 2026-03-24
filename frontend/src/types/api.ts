@@ -18,6 +18,11 @@ export type CreateProjectInput = {
   baseUrl: string;
 };
 
+export type MutationResult = {
+  deleted?: boolean;
+  deletedCount?: number;
+};
+
 export type LogSummary = {
   id: string;
   projectId: string;

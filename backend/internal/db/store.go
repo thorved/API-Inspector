@@ -171,6 +171,49 @@ func (store *Store) GetProjectBySlug(ctx context.Context, slug string) (models.P
 	return scanProject(row)
 }
 
+func (store *Store) UpdateProjectBySlug(ctx context.Context, currentSlug string, input models.UpdateProjectInput) (models.Project, error) {
+	project, err := store.GetProjectBySlug(ctx, currentSlug)
+	if err != nil {
+		return models.Project{}, err
+	}
+
+	project.Name = strings.TrimSpace(input.Name)
+	project.Slug = strings.TrimSpace(input.Slug)
+	project.BaseURL = strings.TrimSpace(input.BaseURL)
+	if input.IsActive != nil {
+		project.IsActive = *input.IsActive
+	}
+	project.UpdatedAt = time.Now().UTC()
+
+	_, err = store.db.ExecContext(ctx, `
+		UPDATE projects
+		SET name = ?, slug = ?, base_url = ?, is_active = ?, updated_at = ?
+		WHERE id = ?
+	`, project.Name, project.Slug, project.BaseURL, boolToInt(project.IsActive), project.UpdatedAt.Format(time.RFC3339Nano), project.ID)
+	if err != nil {
+		return models.Project{}, err
+	}
+
+	return project, nil
+}
+
+func (store *Store) DeleteProjectBySlug(ctx context.Context, slug string) error {
+	result, err := store.db.ExecContext(ctx, `DELETE FROM projects WHERE slug = ?`, slug)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}
+
 func (store *Store) InsertTrafficLog(ctx context.Context, record *models.TrafficLogRecord) error {
 	record.ID = ulid.Make().String()
 	record.CreatedAt = time.Now().UTC()
@@ -359,6 +402,45 @@ func (store *Store) GetStats(ctx context.Context, projectSlug string) (models.St
 	}
 
 	return stats, rows.Err()
+}
+
+func (store *Store) DeleteTrafficLog(ctx context.Context, id string) error {
+	result, err := store.db.ExecContext(ctx, `DELETE FROM traffic_logs WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}
+
+func (store *Store) ClearTrafficLogs(ctx context.Context, projectSlug string) (int64, error) {
+	query := `DELETE FROM traffic_logs`
+	args := make([]any, 0)
+
+	if strings.TrimSpace(projectSlug) != "" {
+		query = `
+			DELETE FROM traffic_logs
+			WHERE project_id IN (
+				SELECT id FROM projects WHERE slug = ?
+			)
+		`
+		args = append(args, strings.TrimSpace(projectSlug))
+	}
+
+	result, err := store.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+
+	return result.RowsAffected()
 }
 
 func scanProject(scanner interface {

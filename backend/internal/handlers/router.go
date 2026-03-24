@@ -44,9 +44,13 @@ func NewRouter(cfg config.Config, logger *zap.Logger, store *db.Store, proxyServ
 	{
 		api.GET("/projects", handler.listProjects)
 		api.POST("/projects", handler.createProject)
+		api.PUT("/projects/:slug", handler.updateProject)
+		api.DELETE("/projects/:slug", handler.deleteProject)
 		api.GET("/projects/:slug", handler.getProject)
 		api.GET("/logs", handler.listLogs)
+		api.DELETE("/logs", handler.clearLogs)
 		api.GET("/logs/:id", handler.getLog)
+		api.DELETE("/logs/:id", handler.deleteLog)
 		api.GET("/stats", handler.getStats)
 		api.GET("/events/traffic", handler.streamTraffic)
 	}

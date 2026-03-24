@@ -67,3 +67,27 @@ func (handler *Handler) getStats(c *gin.Context) {
 
 	c.JSON(http.StatusOK, stats)
 }
+
+func (handler *Handler) deleteLog(c *gin.Context) {
+	err := handler.store.DeleteTrafficLog(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "log not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete log"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"deleted": true})
+}
+
+func (handler *Handler) clearLogs(c *gin.Context) {
+	deletedCount, err := handler.store.ClearTrafficLogs(c.Request.Context(), strings.TrimSpace(c.Query("project")))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to clear logs"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"deletedCount": deletedCount})
+}

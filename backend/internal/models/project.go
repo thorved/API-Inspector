@@ -18,3 +18,10 @@ type CreateProjectInput struct {
 	BaseURL  string `json:"baseUrl"`
 	IsActive *bool  `json:"isActive,omitempty"`
 }
+
+type UpdateProjectInput struct {
+	Name     string `json:"name"`
+	Slug     string `json:"slug"`
+	BaseURL  string `json:"baseUrl"`
+	IsActive *bool  `json:"isActive,omitempty"`
+}
