@@ -1,0 +1,26 @@
+# Build outputs
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+server
+server.exe
+
+# Coverage / logs
+*.out
+coverage.*
+*.coverprofile
+profile.cov
+*.log
+
+# Local runtime state
+/data/
+/tmp/
+.env
+.env.*
+!.env.example
+
+# Generated frontend bundle copied for release
+/web/dist/
