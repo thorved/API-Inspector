@@ -1,0 +1,108 @@
+import type {
+  CreateProjectInput,
+  LogDetail,
+  LogListResponse,
+  Project,
+  ProjectsResponse,
+  StatsResponse,
+} from "@/types/api";
+
+function apiBaseUrl() {
+  const configured = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+  if (configured) {
+    return configured;
+  }
+
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname.toLowerCase();
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:8080";
+    }
+  }
+
+  return "";
+}
+
+export function buildApiUrl(
+  pathname: string,
+  params?: Record<string, string | undefined>,
+) {
+  const base = apiBaseUrl();
+  const url = base
+    ? new URL(pathname, base.endsWith("/") ? base : `${base}/`)
+    : new URL(pathname, window.location.origin);
+
+  for (const [key, value] of Object.entries(params ?? {})) {
+    if (value) {
+      url.searchParams.set(key, value);
+    }
+  }
+
+  if (!base) {
+    return `${url.pathname}${url.search}`;
+  }
+
+  return url.toString();
+}
+
+async function request<T>(input: string, init?: RequestInit): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(input, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(init?.headers ?? {}),
+      },
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(
+        `Unable to reach the API server at ${input}. Make sure the Go backend is running and CORS is configured for the frontend origin.`,
+      );
+    }
+    throw error;
+  }
+
+  if (!response.ok) {
+    let message = "Request failed";
+    try {
+      const payload = (await response.json()) as { error?: string };
+      if (payload.error) {
+        message = payload.error;
+      }
+    } catch {}
+    throw new Error(message);
+  }
+
+  return (await response.json()) as T;
+}
+
+export function listProjects() {
+  return request<ProjectsResponse>(buildApiUrl("/api/projects"));
+}
+
+export function createProject(input: CreateProjectInput) {
+  return request<Project>(buildApiUrl("/api/projects"), {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function listLogs(filters: {
+  project?: string;
+  method?: string;
+  status?: string;
+  search?: string;
+  cursor?: string;
+}) {
+  return request<LogListResponse>(buildApiUrl("/api/logs", filters));
+}
+
+export function getLog(id: string) {
+  return request<LogDetail>(buildApiUrl(`/api/logs/${id}`));
+}
+
+export function getStats(project?: string) {
+  return request<StatsResponse>(buildApiUrl("/api/stats", { project }));
+}
