@@ -1,12 +1,9 @@
 "use client";
 
-import styles from "../_workspace/workspace.module.css";
-import { useInspectorWorkspace } from "../_workspace/workspace-state";
-import {
-  ProjectForm,
-  ProjectList,
-  WorkspaceFrame,
-} from "../_workspace/workspace-ui";
+import { useWorkspaceTheme } from "@/components/app-shell";
+import { useInspectorWorkspace } from "../use-inspector-workspace";
+import styles from "./projects.module.css";
+import { ProjectForm, ProjectList, ProjectsFrame } from "./projects-ui";
 
 function cx(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
@@ -27,17 +24,11 @@ export function ProjectsPageClient() {
     projects,
     selectedProject,
     setForm,
-    setTheme,
-    theme,
   } = useInspectorWorkspace();
+  const { theme } = useWorkspaceTheme();
 
   return (
-    <WorkspaceFrame
-      currentPage="projects"
-      errorMessage={errorMessage}
-      setTheme={setTheme}
-      theme={theme}
-    >
+    <ProjectsFrame errorMessage={errorMessage} theme={theme}>
       <section className={cx(styles.glassPanel, styles.workspaceHero, "p-6")}>
         <div className={styles.badge}>Project workspace</div>
         <div className="mt-5 grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
@@ -93,6 +84,6 @@ export function ProjectsPageClient() {
           selectedProject={selectedProject}
         />
       </section>
-    </WorkspaceFrame>
+    </ProjectsFrame>
   );
 }

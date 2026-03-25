@@ -1,12 +1,14 @@
 "use client";
 
-import styles from "../_workspace/workspace.module.css";
+import { useWorkspaceTheme } from "@/components/app-shell";
 import {
   methodOptions,
   statusOptions,
   useInspectorWorkspace,
-} from "../_workspace/workspace-state";
+} from "../use-inspector-workspace";
+import styles from "./dashboard.module.css";
 import {
+  DashboardFrame,
   formatDateTime,
   formatTime,
   InspectorBody,
@@ -15,8 +17,7 @@ import {
   StatusBadge,
   toKeyValueRows,
   UploadedFilesPanel,
-  WorkspaceFrame,
-} from "../_workspace/workspace-ui";
+} from "./dashboard-ui";
 
 function cx(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
@@ -45,19 +46,13 @@ export function DashboardPageClient() {
     setMethod,
     setSearch,
     setStatus,
-    setTheme,
     stats,
     status,
-    theme,
   } = useInspectorWorkspace({ includeTraffic: true });
+  const { theme } = useWorkspaceTheme();
 
   return (
-    <WorkspaceFrame
-      currentPage="dashboard"
-      errorMessage={errorMessage}
-      setTheme={setTheme}
-      theme={theme}
-    >
+    <DashboardFrame errorMessage={errorMessage} theme={theme}>
       <div className={styles.inspectorShell}>
         <aside className={styles.inspectorSidebar}>
           <div className={styles.inspectorSidebarTop}>
@@ -431,6 +426,6 @@ export function DashboardPageClient() {
           </div>
         </section>
       </div>
-    </WorkspaceFrame>
+    </DashboardFrame>
   );
 }

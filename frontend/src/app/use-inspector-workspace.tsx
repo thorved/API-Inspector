@@ -103,7 +103,6 @@ export function useInspectorWorkspace({
     slug: "",
     baseUrl: "",
   });
-  const [theme, setTheme] = useState<WorkspaceTheme>("light");
   const [editingProjectSlug, setEditingProjectSlug] = useState("");
   const [deletingProjectSlug, setDeletingProjectSlug] = useState("");
   const [deletingLogID, setDeletingLogID] = useState("");
@@ -119,20 +118,6 @@ export function useInspectorWorkspace({
     setSelectedProject(params.get("project") ?? "");
     setSelectedLog(params.get("log") ?? "");
   }, []);
-
-  useEffect(() => {
-    const savedTheme = window.localStorage.getItem(
-      "api-inspector-workspace-theme",
-    ) as WorkspaceTheme | null;
-
-    if (savedTheme === "light" || savedTheme === "dark") {
-      setTheme(savedTheme);
-    }
-  }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem("api-inspector-workspace-theme", theme);
-  }, [theme]);
 
   useEffect(() => {
     let cancelled = false;
@@ -545,10 +530,8 @@ export function useInspectorWorkspace({
     setMethod,
     setSearch,
     setStatus,
-    setTheme,
     stats,
     status,
-    theme,
   };
 }
 

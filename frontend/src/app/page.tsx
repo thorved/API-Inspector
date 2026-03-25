@@ -4,18 +4,6 @@ export default function Home() {
   return (
     <main className="clean-page">
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-10 px-4 py-8 sm:px-6 lg:px-8">
-        <header className="flex items-center justify-between border-b border-slate-200 pb-6">
-          <div className="badge">API-Inspector</div>
-          <div className="flex gap-3">
-            <Link className="secondary-button" href="/projects">
-              Projects
-            </Link>
-            <Link className="primary-button" href="/dashboard">
-              Open dashboard
-            </Link>
-          </div>
-        </header>
-
         <section className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
           <div>
             <p className="text-sm uppercase tracking-[0.2em] text-slate-500">

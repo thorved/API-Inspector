@@ -1,0 +1,139 @@
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  border-bottom: 1px solid var(--nav-border);
+  background: var(--nav-bg);
+  backdrop-filter: blur(18px);
+}
+
+.inner {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 auto;
+  padding: 0.9rem 1rem;
+}
+
+.brandRow,
+.actionsRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--nav-border);
+  background: var(--nav-pill-bg);
+  padding: 0.35rem 0.7rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--nav-muted);
+}
+
+.navButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--nav-border);
+  border-radius: 0.75rem;
+  background: var(--nav-button-bg);
+  padding: 0.72rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--nav-text);
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.navButton:hover {
+  transform: translateY(-1px);
+}
+
+.navButtonActive {
+  border-color: var(--nav-active-border);
+  background: var(--nav-active-bg);
+  color: var(--nav-active-text);
+}
+
+.nav[data-variant="clean"] {
+  --nav-bg: rgba(248, 250, 252, 0.9);
+  --nav-border: rgba(148, 163, 184, 0.22);
+  --nav-pill-bg: rgba(255, 255, 255, 0.92);
+  --nav-button-bg: rgba(255, 255, 255, 0.9);
+  --nav-text: #0f172a;
+  --nav-muted: #64748b;
+  --nav-active-bg: #2563eb;
+  --nav-active-border: #2563eb;
+  --nav-active-text: #ffffff;
+}
+
+.nav[data-variant="clean"][data-theme="dark"] {
+  --nav-bg: rgba(8, 17, 31, 0.88);
+  --nav-border: rgba(148, 163, 184, 0.2);
+  --nav-pill-bg: rgba(15, 23, 42, 0.84);
+  --nav-button-bg: rgba(15, 23, 42, 0.84);
+  --nav-text: #e2e8f0;
+  --nav-muted: #94a3b8;
+  --nav-active-bg: #2563eb;
+  --nav-active-border: #2563eb;
+  --nav-active-text: #eff6ff;
+}
+
+.nav[data-variant="dashboard"] {
+  --nav-bg: rgba(237, 242, 247, 0.9);
+  --nav-border: rgba(15, 23, 42, 0.12);
+  --nav-pill-bg: rgba(252, 253, 255, 0.92);
+  --nav-button-bg: rgba(252, 253, 255, 0.92);
+  --nav-text: #0f172a;
+  --nav-muted: #64748b;
+  --nav-active-bg: #3b82f6;
+  --nav-active-border: #3b82f6;
+  --nav-active-text: #ffffff;
+}
+
+.nav[data-variant="dashboard"][data-theme="dark"] {
+  --nav-bg: rgba(15, 15, 16, 0.88);
+  --nav-border: rgba(255, 255, 255, 0.1);
+  --nav-pill-bg: rgba(22, 22, 23, 0.9);
+  --nav-button-bg: rgba(22, 22, 23, 0.9);
+  --nav-text: #f4f4f5;
+  --nav-muted: #a1a1aa;
+  --nav-active-bg: #2563eb;
+  --nav-active-border: #2563eb;
+  --nav-active-text: #eff6ff;
+}
+
+@media (min-width: 1024px) {
+  .inner {
+    max-width: 96rem;
+    padding-inline: 1.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .inner {
+    padding-inline: 0.9rem;
+  }
+
+  .brandRow,
+  .actionsRow {
+    gap: 0.55rem;
+  }
+
+  .navButton {
+    padding: 0.68rem 0.9rem;
+  }
+}
