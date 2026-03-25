@@ -5,7 +5,7 @@ export default function Home() {
     <main className="clean-page">
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-10 px-4 py-8 sm:px-6 lg:px-8">
         <header className="flex items-center justify-between border-b border-slate-200 pb-6">
-          <div className="badge">ProxyLens</div>
+          <div className="badge">API-Inspector</div>
           <div className="flex gap-3">
             <Link className="secondary-button" href="/projects">
               Projects
@@ -25,9 +25,10 @@ export default function Home() {
               Inspect every proxied request and response in one clean workspace.
             </h1>
             <p className="muted-copy mt-6 max-w-2xl text-lg leading-8">
-              ProxyLens sits between your client and the target API, forwards
-              traffic, stores the exchange, and gives you a fast dashboard for
-              headers, payloads, status codes, latency, and live traffic.
+              API-Inspector sits between your client and the target API,
+              forwards traffic, stores the exchange, and gives you a fast
+              dashboard for headers, payloads, status codes, latency, and live
+              traffic.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               <Link className="primary-button" href="/dashboard">

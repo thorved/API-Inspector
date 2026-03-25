@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
-	"proxylens/backend/internal/proxy"
+	"api-inspector/backend/internal/proxy"
 )
 
 func (handler *Handler) forwardProxy(c *gin.Context) {

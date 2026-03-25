@@ -14,8 +14,8 @@ import (
 	"go.uber.org/zap"
 	_ "modernc.org/sqlite"
 
-	"proxylens/backend/internal/config"
-	"proxylens/backend/internal/models"
+	"api-inspector/backend/internal/config"
+	"api-inspector/backend/internal/models"
 )
 
 type Store struct {

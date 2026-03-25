@@ -121,7 +121,7 @@ export function DashboardShell({
 
   useEffect(() => {
     const savedTheme = window.localStorage.getItem(
-      "proxylens-workspace-theme",
+      "api-inspector-workspace-theme",
     ) as WorkspaceTheme | null;
     if (savedTheme === "light" || savedTheme === "dark") {
       setTheme(savedTheme);
@@ -129,7 +129,7 @@ export function DashboardShell({
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem("proxylens-workspace-theme", theme);
+    window.localStorage.setItem("api-inspector-workspace-theme", theme);
   }, [theme]);
 
   useEffect(() => {
@@ -500,7 +500,7 @@ export function DashboardShell({
       >
         <nav className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="badge">ProxyLens</div>
+            <div className="badge">API-Inspector</div>
             <button
               className={
                 view === "overview" ? "tab-button active" : "tab-button"

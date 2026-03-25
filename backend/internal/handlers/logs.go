@@ -8,8 +8,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"proxylens/backend/internal/db"
-	"proxylens/backend/internal/models"
+	"api-inspector/backend/internal/db"
+	"api-inspector/backend/internal/models"
 )
 
 func (handler *Handler) listLogs(c *gin.Context) {

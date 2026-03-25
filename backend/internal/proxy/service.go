@@ -16,10 +16,10 @@ import (
 
 	"go.uber.org/zap"
 
-	"proxylens/backend/internal/config"
-	"proxylens/backend/internal/db"
-	"proxylens/backend/internal/models"
-	"proxylens/backend/internal/realtime"
+	"api-inspector/backend/internal/config"
+	"api-inspector/backend/internal/db"
+	"api-inspector/backend/internal/models"
+	"api-inspector/backend/internal/realtime"
 )
 
 type Service struct {
