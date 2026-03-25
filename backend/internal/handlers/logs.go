@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -68,8 +69,58 @@ func (handler *Handler) getStats(c *gin.Context) {
 	c.JSON(http.StatusOK, stats)
 }
 
+func (handler *Handler) downloadLogFile(c *gin.Context) {
+	record, err := handler.store.GetTrafficLog(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "log not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load log"})
+		return
+	}
+
+	index, err := strconv.Atoi(strings.TrimSpace(c.Param("index")))
+	if err != nil || index < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid file index"})
+		return
+	}
+
+	files := record.Detail().Request.UploadedFiles
+	if index >= len(files) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "file not found"})
+		return
+	}
+
+	selectedFile := files[index]
+	if strings.TrimSpace(selectedFile.SavedPath) == "" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "file not found"})
+		return
+	}
+
+	dataDir := filepath.Clean(filepath.Dir(handler.config.DatabasePath))
+	absolutePath := filepath.Clean(filepath.Join(dataDir, filepath.FromSlash(selectedFile.SavedPath)))
+	relativePath, relErr := filepath.Rel(dataDir, absolutePath)
+	if relErr != nil || strings.HasPrefix(relativePath, "..") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid file path"})
+		return
+	}
+
+	if selectedFile.ContentType != "" {
+		c.Header("Content-Type", selectedFile.ContentType)
+	}
+	c.FileAttachment(absolutePath, selectedFile.FileName)
+}
+
 func (handler *Handler) deleteLog(c *gin.Context) {
-	err := handler.store.DeleteTrafficLog(c.Request.Context(), c.Param("id"))
+	logID := c.Param("id")
+	filePaths, err := handler.store.ListStoredFilePathsByLog(c.Request.Context(), logID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load stored files"})
+		return
+	}
+
+	err = handler.store.DeleteTrafficLog(c.Request.Context(), logID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{"error": "log not found"})
@@ -79,15 +130,32 @@ func (handler *Handler) deleteLog(c *gin.Context) {
 		return
 	}
 
+	handler.removeStoredFiles(filePaths)
 	c.JSON(http.StatusOK, gin.H{"deleted": true})
 }
 
 func (handler *Handler) clearLogs(c *gin.Context) {
-	deletedCount, err := handler.store.ClearTrafficLogs(c.Request.Context(), strings.TrimSpace(c.Query("project")))
+	projectSlug := strings.TrimSpace(c.Query("project"))
+	var (
+		filePaths []string
+		err       error
+	)
+	if projectSlug == "" {
+		filePaths, err = handler.store.ListStoredFilePaths(c.Request.Context())
+	} else {
+		filePaths, err = handler.store.ListStoredFilePathsByProject(c.Request.Context(), projectSlug)
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load stored files"})
+		return
+	}
+
+	deletedCount, err := handler.store.ClearTrafficLogs(c.Request.Context(), projectSlug)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to clear logs"})
 		return
 	}
 
+	handler.removeStoredFiles(filePaths)
 	c.JSON(http.StatusOK, gin.H{"deletedCount": deletedCount})
 }

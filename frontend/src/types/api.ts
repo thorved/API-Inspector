@@ -53,6 +53,14 @@ export type BodyPreview = {
   binary: boolean;
 };
 
+export type UploadedFile = {
+  fieldName: string;
+  fileName: string;
+  contentType: string;
+  size: number;
+  savedPath: string;
+};
+
 export type LogDetail = {
   id: string;
   project: {
@@ -66,6 +74,7 @@ export type LogDetail = {
     path: string;
     query: Record<string, string[]>;
     headers: Record<string, string[]>;
+    uploadedFiles: UploadedFile[];
     body: BodyPreview;
   };
   response: {

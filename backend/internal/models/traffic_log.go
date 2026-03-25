@@ -13,6 +13,14 @@ type BodyPreview struct {
 	Binary      bool   `json:"binary"`
 }
 
+type UploadedFile struct {
+	FieldName   string `json:"fieldName"`
+	FileName    string `json:"fileName"`
+	ContentType string `json:"contentType"`
+	Size        int64  `json:"size"`
+	SavedPath   string `json:"savedPath"`
+}
+
 type TrafficLogRecord struct {
 	ID                    string
 	ProjectID             string
@@ -23,6 +31,7 @@ type TrafficLogRecord struct {
 	FullURL               string
 	QueryJSON             string
 	RequestHeadersJSON    string
+	RequestFilesJSON      string
 	RequestBodyPreview    string
 	RequestBodySize       int
 	RequestContentType    string
@@ -78,12 +87,13 @@ type TrafficProjectRef struct {
 }
 
 type TrafficSide struct {
-	Method  string              `json:"method,omitempty"`
-	URL     string              `json:"url,omitempty"`
-	Path    string              `json:"path,omitempty"`
-	Query   map[string][]string `json:"query,omitempty"`
-	Headers map[string][]string `json:"headers,omitempty"`
-	Body    BodyPreview         `json:"body"`
+	Method        string              `json:"method,omitempty"`
+	URL           string              `json:"url,omitempty"`
+	Path          string              `json:"path,omitempty"`
+	Query         map[string][]string `json:"query,omitempty"`
+	Headers       map[string][]string `json:"headers,omitempty"`
+	UploadedFiles []UploadedFile      `json:"uploadedFiles"`
+	Body          BodyPreview         `json:"body"`
 }
 
 type TrafficResponse struct {
@@ -140,11 +150,12 @@ func (record TrafficLogRecord) Detail() TrafficLogDetail {
 			Slug: record.ProjectSlug,
 		},
 		Request: TrafficSide{
-			Method:  record.Method,
-			URL:     record.FullURL,
-			Path:    record.Path,
-			Query:   mustHeaderMap(record.QueryJSON),
-			Headers: mustHeaderMap(record.RequestHeadersJSON),
+			Method:        record.Method,
+			URL:           record.FullURL,
+			Path:          record.Path,
+			Query:         mustHeaderMap(record.QueryJSON),
+			Headers:       mustHeaderMap(record.RequestHeadersJSON),
+			UploadedFiles: mustUploadedFiles(record.RequestFilesJSON),
 			Body: BodyPreview{
 				Preview:     record.RequestBodyPreview,
 				Size:        record.RequestBodySize,
@@ -181,5 +192,22 @@ func mustHeaderMap(value string) map[string][]string {
 	if err := json.Unmarshal([]byte(value), &result); err != nil {
 		return map[string][]string{}
 	}
+	return result
+}
+
+func mustUploadedFiles(value string) []UploadedFile {
+	if value == "" {
+		return []UploadedFile{}
+	}
+
+	var result []UploadedFile
+	if err := json.Unmarshal([]byte(value), &result); err != nil {
+		return []UploadedFile{}
+	}
+
+	if result == nil {
+		return []UploadedFile{}
+	}
+
 	return result
 }

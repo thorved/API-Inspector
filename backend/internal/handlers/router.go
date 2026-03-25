@@ -50,6 +50,7 @@ func NewRouter(cfg config.Config, logger *zap.Logger, store *db.Store, proxyServ
 		api.GET("/logs", handler.listLogs)
 		api.DELETE("/logs", handler.clearLogs)
 		api.GET("/logs/:id", handler.getLog)
+		api.GET("/logs/:id/files/:index/download", handler.downloadLogFile)
 		api.DELETE("/logs/:id", handler.deleteLog)
 		api.GET("/stats", handler.getStats)
 		api.GET("/events/traffic", handler.streamTraffic)

@@ -6,14 +6,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/textproto"
 	"net/url"
+	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 	"unicode/utf8"
 
+	"github.com/oklog/ulid/v2"
 	"go.uber.org/zap"
 
 	"api-inspector/backend/internal/config"
@@ -28,6 +33,7 @@ type Service struct {
 	store            *db.Store
 	hub              *realtime.Hub
 	bodyPreviewLimit int
+	uploadsDir       string
 }
 
 type Result struct {
@@ -38,6 +44,11 @@ type Result struct {
 }
 
 func NewService(cfg config.Config, logger *zap.Logger, store *db.Store, hub *realtime.Hub) *Service {
+	uploadsDir := filepath.Join(filepath.Dir(cfg.DatabasePath), "uploads")
+	if err := os.MkdirAll(uploadsDir, 0o755); err != nil {
+		logger.Warn("failed to ensure uploads directory", zap.String("path", uploadsDir), zap.Error(err))
+	}
+
 	return &Service{
 		client: &http.Client{
 			Timeout: cfg.UpstreamTimeout,
@@ -46,6 +57,7 @@ func NewService(cfg config.Config, logger *zap.Logger, store *db.Store, hub *rea
 		store:            store,
 		hub:              hub,
 		bodyPreviewLimit: cfg.BodyPreviewLimit,
+		uploadsDir:       uploadsDir,
 	}
 }
 
@@ -77,7 +89,20 @@ func (service *Service) Forward(ctx context.Context, project models.Project, req
 	duration := time.Since(startedAt)
 
 	requestPreview := captureBodyPreview(requestBody, request.Header.Get("Content-Type"), service.bodyPreviewLimit)
+	recordID := ulid.Make().String()
+	requestFiles, saveFilesErr := service.storeRequestFiles(
+		project.Slug,
+		recordID,
+		request.Header.Get("Content-Type"),
+		request.Header,
+		request.URL.Path,
+		requestBody,
+	)
+	if saveFilesErr != nil {
+		service.logger.Warn("failed to store uploaded files", zap.String("logId", recordID), zap.Error(saveFilesErr))
+	}
 	record := models.TrafficLogRecord{
+		ID:                   recordID,
 		ProjectID:            project.ID,
 		ProjectName:          project.Name,
 		ProjectSlug:          project.Slug,
@@ -86,6 +111,7 @@ func (service *Service) Forward(ctx context.Context, project models.Project, req
 		FullURL:              targetURL,
 		QueryJSON:            mustJSON(request.URL.Query()),
 		RequestHeadersJSON:   mustJSON(request.Header),
+		RequestFilesJSON:     mustJSON(requestFiles),
 		RequestBodyPreview:   requestPreview.Preview,
 		RequestBodySize:      requestPreview.Size,
 		RequestContentType:   requestPreview.ContentType,
@@ -200,6 +226,184 @@ func copyRequestHeaders(destination http.Header, source http.Header) {
 			destination.Add(key, value)
 		}
 	}
+}
+
+func (service *Service) storeRequestFiles(projectSlug, logID, contentType string, headers http.Header, requestPath string, body []byte) ([]models.UploadedFile, error) {
+	mediaType, params, err := mime.ParseMediaType(contentType)
+	if err == nil && strings.HasPrefix(strings.ToLower(mediaType), "multipart/") {
+		boundary := strings.TrimSpace(params["boundary"])
+		if boundary == "" {
+			return []models.UploadedFile{}, nil
+		}
+
+		logUploadsDir := filepath.Join(service.uploadsDir, projectSlug, logID)
+		if err := os.MkdirAll(logUploadsDir, 0o755); err != nil {
+			return nil, fmt.Errorf("create upload directory: %w", err)
+		}
+
+		reader := multipart.NewReader(bytes.NewReader(body), boundary)
+		files := make([]models.UploadedFile, 0)
+
+		for index := 0; ; index++ {
+			part, err := reader.NextPart()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return files, err
+			}
+
+			fileName := strings.TrimSpace(part.FileName())
+			if fileName == "" {
+				_, _ = io.Copy(io.Discard, part)
+				_ = part.Close()
+				continue
+			}
+
+			savedFile, saveErr := service.saveUploadFile(
+				projectSlug,
+				logID,
+				strings.TrimSpace(part.FormName()),
+				fileName,
+				strings.TrimSpace(part.Header.Get("Content-Type")),
+				part,
+			)
+			_ = part.Close()
+			if saveErr != nil {
+				return files, saveErr
+			}
+			files = append(files, savedFile)
+		}
+
+		return files, nil
+	}
+
+	if len(body) == 0 || isTextualBody(contentType, body) {
+		return []models.UploadedFile{}, nil
+	}
+
+	fileName := inferRawUploadFileName(headers, requestPath, contentType)
+	file, err := service.saveUploadFile(
+		projectSlug,
+		logID,
+		"body",
+		fileName,
+		strings.TrimSpace(contentType),
+		bytes.NewReader(body),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return []models.UploadedFile{file}, nil
+}
+
+func (service *Service) saveUploadFile(projectSlug, logID, fieldName, fileName, contentType string, source io.Reader) (models.UploadedFile, error) {
+	safeName := sanitizeFileName(fileName)
+	relativePath, absolutePath, err := service.buildUniqueUploadPath(projectSlug, logID, safeName)
+	if err != nil {
+		return models.UploadedFile{}, err
+	}
+
+	if err := os.MkdirAll(filepath.Dir(absolutePath), 0o755); err != nil {
+		return models.UploadedFile{}, fmt.Errorf("create upload file directory: %w", err)
+	}
+
+	output, err := os.Create(absolutePath)
+	if err != nil {
+		return models.UploadedFile{}, fmt.Errorf("create upload file: %w", err)
+	}
+
+	size, copyErr := io.Copy(output, source)
+	closeErr := output.Close()
+	if copyErr != nil {
+		return models.UploadedFile{}, fmt.Errorf("write upload file: %w", copyErr)
+	}
+	if closeErr != nil {
+		return models.UploadedFile{}, fmt.Errorf("finalize upload file: %w", closeErr)
+	}
+
+	return models.UploadedFile{
+		FieldName:   fieldName,
+		FileName:    safeName,
+		ContentType: contentType,
+		Size:        size,
+		SavedPath:   relativePath,
+	}, nil
+}
+
+func (service *Service) buildUniqueUploadPath(projectSlug, logID, fileName string) (string, string, error) {
+	logDir := filepath.Join(service.uploadsDir, projectSlug, logID)
+	if err := os.MkdirAll(logDir, 0o755); err != nil {
+		return "", "", fmt.Errorf("create upload directory: %w", err)
+	}
+
+	extension := filepath.Ext(fileName)
+	baseName := strings.TrimSuffix(fileName, extension)
+	if baseName == "" {
+		baseName = "upload"
+	}
+
+	for index := 0; ; index++ {
+		candidateName := fileName
+		if index > 0 {
+			candidateName = fmt.Sprintf("%s-%d%s", baseName, index+1, extension)
+		}
+
+		relativePath := filepath.ToSlash(filepath.Join("uploads", projectSlug, logID, candidateName))
+		absolutePath := filepath.Join(filepath.Dir(service.uploadsDir), filepath.FromSlash(relativePath))
+		if _, err := os.Stat(absolutePath); os.IsNotExist(err) {
+			return relativePath, absolutePath, nil
+		} else if err != nil {
+			return "", "", fmt.Errorf("check upload file path: %w", err)
+		}
+	}
+}
+
+func sanitizeFileName(value string) string {
+	name := strings.TrimSpace(filepath.Base(value))
+	name = strings.ReplaceAll(name, "..", "")
+	name = strings.ReplaceAll(name, "/", "-")
+	name = strings.ReplaceAll(name, "\\", "-")
+	if name == "" || name == "." {
+		return "upload.bin"
+	}
+	return name
+}
+
+func inferRawUploadFileName(headers http.Header, requestPath, contentType string) string {
+	if contentDisposition := strings.TrimSpace(headers.Get("Content-Disposition")); contentDisposition != "" {
+		if _, params, err := mime.ParseMediaType(contentDisposition); err == nil {
+			if fileName := strings.TrimSpace(params["filename"]); fileName != "" {
+				return fileName
+			}
+		}
+	}
+
+	for _, headerName := range []string{"X-File-Name", "X-Filename", "X-Upload-Filename"} {
+		if fileName := strings.TrimSpace(headers.Get(headerName)); fileName != "" {
+			return fileName
+		}
+	}
+
+	baseName := "upload"
+	if requestPath != "" {
+		pathBaseName := strings.TrimSpace(path.Base(requestPath))
+		if pathBaseName != "" && pathBaseName != "/" && pathBaseName != "." {
+			if extension := filepath.Ext(pathBaseName); extension != "" {
+				baseName += extension
+				return baseName
+			}
+		}
+	}
+
+	if filepath.Ext(baseName) == "" {
+		if extensions, err := mime.ExtensionsByType(contentType); err == nil && len(extensions) > 0 {
+			baseName += extensions[0]
+		}
+	}
+
+	return baseName
 }
 
 func CopyResponseHeaders(destination http.Header, source http.Header) {

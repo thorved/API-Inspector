@@ -101,7 +101,14 @@ func (handler *Handler) updateProject(c *gin.Context) {
 }
 
 func (handler *Handler) deleteProject(c *gin.Context) {
-	err := handler.store.DeleteProjectBySlug(c.Request.Context(), c.Param("slug"))
+	slug := c.Param("slug")
+	filePaths, err := handler.store.ListStoredFilePathsByProject(c.Request.Context(), slug)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load stored files"})
+		return
+	}
+
+	err = handler.store.DeleteProjectBySlug(c.Request.Context(), slug)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{"error": "project not found"})
@@ -111,6 +118,7 @@ func (handler *Handler) deleteProject(c *gin.Context) {
 		return
 	}
 
+	handler.removeStoredFiles(filePaths)
 	c.JSON(http.StatusOK, gin.H{"deleted": true})
 }
 

@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -57,52 +58,8 @@ func (store *Store) Close() error {
 }
 
 func (store *Store) migrate(ctx context.Context) error {
-	statements := []string{
-		`CREATE TABLE IF NOT EXISTS projects (
-			id TEXT PRIMARY KEY,
-			name TEXT NOT NULL,
-			slug TEXT NOT NULL UNIQUE,
-			base_url TEXT NOT NULL,
-			is_active INTEGER NOT NULL DEFAULT 1,
-			created_at TEXT NOT NULL,
-			updated_at TEXT NOT NULL
-		);`,
-		`CREATE TABLE IF NOT EXISTS traffic_logs (
-			id TEXT PRIMARY KEY,
-			project_id TEXT NOT NULL,
-			method TEXT NOT NULL,
-			path TEXT NOT NULL,
-			full_url TEXT NOT NULL,
-			query_json TEXT NOT NULL,
-			request_headers_json TEXT NOT NULL,
-			request_body_preview TEXT NOT NULL,
-			request_body_size INTEGER NOT NULL DEFAULT 0,
-			request_content_type TEXT NOT NULL,
-			request_body_truncated INTEGER NOT NULL DEFAULT 0,
-			request_body_binary INTEGER NOT NULL DEFAULT 0,
-			response_status INTEGER NOT NULL DEFAULT 0,
-			response_headers_json TEXT NOT NULL,
-			response_body_preview TEXT NOT NULL,
-			response_body_size INTEGER NOT NULL DEFAULT 0,
-			response_content_type TEXT NOT NULL,
-			response_body_truncated INTEGER NOT NULL DEFAULT 0,
-			response_body_binary INTEGER NOT NULL DEFAULT 0,
-			duration_ms INTEGER NOT NULL DEFAULT 0,
-			error_message TEXT NOT NULL DEFAULT '',
-			client_ip TEXT NOT NULL DEFAULT '',
-			user_agent TEXT NOT NULL DEFAULT '',
-			created_at TEXT NOT NULL,
-			FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
-		);`,
-		`CREATE INDEX IF NOT EXISTS idx_projects_slug ON projects(slug);`,
-		`CREATE INDEX IF NOT EXISTS idx_traffic_logs_project_created_at ON traffic_logs(project_id, created_at DESC);`,
-		`CREATE INDEX IF NOT EXISTS idx_traffic_logs_created_at ON traffic_logs(created_at DESC);`,
-	}
-
-	for _, statement := range statements {
-		if _, err := store.db.ExecContext(ctx, statement); err != nil {
-			return fmt.Errorf("migrate: %w", err)
-		}
+	if err := store.applyMigrations(ctx); err != nil {
+		return fmt.Errorf("migrate: %w", err)
 	}
 
 	return nil
@@ -215,17 +172,21 @@ func (store *Store) DeleteProjectBySlug(ctx context.Context, slug string) error 
 }
 
 func (store *Store) InsertTrafficLog(ctx context.Context, record *models.TrafficLogRecord) error {
-	record.ID = ulid.Make().String()
+	if strings.TrimSpace(record.ID) == "" {
+		record.ID = ulid.Make().String()
+	}
 	record.CreatedAt = time.Now().UTC()
 
 	_, err := store.db.ExecContext(ctx, `
 		INSERT INTO traffic_logs (
 			id, project_id, method, path, full_url, query_json, request_headers_json,
+			request_files_json,
 			request_body_preview, request_body_size, request_content_type, request_body_truncated, request_body_binary,
 			response_status, response_headers_json, response_body_preview, response_body_size, response_content_type,
 			response_body_truncated, response_body_binary, duration_ms, error_message, client_ip, user_agent, created_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, record.ID, record.ProjectID, record.Method, record.Path, record.FullURL, record.QueryJSON, record.RequestHeadersJSON,
+		record.RequestFilesJSON,
 		record.RequestBodyPreview, record.RequestBodySize, record.RequestContentType, boolToInt(record.RequestBodyTruncated), boolToInt(record.RequestBodyBinary),
 		record.ResponseStatus, record.ResponseHeadersJSON, record.ResponseBodyPreview, record.ResponseBodySize, record.ResponseContentType,
 		boolToInt(record.ResponseBodyTruncated), boolToInt(record.ResponseBodyBinary), record.DurationMS, record.ErrorMessage, record.ClientIP, record.UserAgent,
@@ -238,7 +199,7 @@ func (store *Store) GetTrafficLog(ctx context.Context, id string) (models.Traffi
 	row := store.db.QueryRowContext(ctx, `
 		SELECT
 			l.id, p.id, p.name, p.slug, l.method, l.path, l.full_url, l.query_json,
-			l.request_headers_json, l.request_body_preview, l.request_body_size, l.request_content_type,
+			l.request_headers_json, l.request_files_json, l.request_body_preview, l.request_body_size, l.request_content_type,
 			l.request_body_truncated, l.request_body_binary, l.response_status, l.response_headers_json,
 			l.response_body_preview, l.response_body_size, l.response_content_type, l.response_body_truncated,
 			l.response_body_binary, l.duration_ms, l.error_message, l.client_ip, l.user_agent, l.created_at
@@ -298,7 +259,7 @@ func (store *Store) ListTrafficLogs(ctx context.Context, filters LogFilters) ([]
 	query := fmt.Sprintf(`
 		SELECT
 			l.id, p.id, p.name, p.slug, l.method, l.path, l.full_url, l.query_json,
-			l.request_headers_json, l.request_body_preview, l.request_body_size, l.request_content_type,
+			l.request_headers_json, l.request_files_json, l.request_body_preview, l.request_body_size, l.request_content_type,
 			l.request_body_truncated, l.request_body_binary, l.response_status, l.response_headers_json,
 			l.response_body_preview, l.response_body_size, l.response_content_type, l.response_body_truncated,
 			l.response_body_binary, l.duration_ms, l.error_message, l.client_ip, l.user_agent, l.created_at
@@ -378,7 +339,7 @@ func (store *Store) GetStats(ctx context.Context, projectSlug string) (models.St
 	rows, err := store.db.QueryContext(ctx, fmt.Sprintf(`
 		SELECT
 			l.id, p.id, p.name, p.slug, l.method, l.path, l.full_url, l.query_json,
-			l.request_headers_json, l.request_body_preview, l.request_body_size, l.request_content_type,
+			l.request_headers_json, l.request_files_json, l.request_body_preview, l.request_body_size, l.request_content_type,
 			l.request_body_truncated, l.request_body_binary, l.response_status, l.response_headers_json,
 			l.response_body_preview, l.response_body_size, l.response_content_type, l.response_body_truncated,
 			l.response_body_binary, l.duration_ms, l.error_message, l.client_ip, l.user_agent, l.created_at
@@ -421,6 +382,23 @@ func (store *Store) DeleteTrafficLog(ctx context.Context, id string) error {
 	return nil
 }
 
+func (store *Store) ListStoredFilePathsByLog(ctx context.Context, id string) ([]string, error) {
+	return store.listStoredFilePaths(ctx, `SELECT request_files_json FROM traffic_logs WHERE id = ?`, id)
+}
+
+func (store *Store) ListStoredFilePathsByProject(ctx context.Context, slug string) ([]string, error) {
+	return store.listStoredFilePaths(ctx, `
+		SELECT l.request_files_json
+		FROM traffic_logs l
+		INNER JOIN projects p ON p.id = l.project_id
+		WHERE p.slug = ?
+	`, slug)
+}
+
+func (store *Store) ListStoredFilePaths(ctx context.Context) ([]string, error) {
+	return store.listStoredFilePaths(ctx, `SELECT request_files_json FROM traffic_logs`)
+}
+
 func (store *Store) ClearTrafficLogs(ctx context.Context, projectSlug string) (int64, error) {
 	query := `DELETE FROM traffic_logs`
 	args := make([]any, 0)
@@ -441,6 +419,39 @@ func (store *Store) ClearTrafficLogs(ctx context.Context, projectSlug string) (i
 	}
 
 	return result.RowsAffected()
+}
+
+func (store *Store) listStoredFilePaths(ctx context.Context, query string, args ...any) ([]string, error) {
+	rows, err := store.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	filePaths := make([]string, 0)
+	for rows.Next() {
+		var payload string
+		if err := rows.Scan(&payload); err != nil {
+			return nil, err
+		}
+
+		if strings.TrimSpace(payload) == "" {
+			continue
+		}
+
+		var files []models.UploadedFile
+		if err := json.Unmarshal([]byte(payload), &files); err != nil {
+			continue
+		}
+
+		for _, file := range files {
+			if strings.TrimSpace(file.SavedPath) != "" {
+				filePaths = append(filePaths, file.SavedPath)
+			}
+		}
+	}
+
+	return filePaths, rows.Err()
 }
 
 func scanProject(scanner interface {
@@ -480,7 +491,7 @@ func scanTrafficLog(scanner interface {
 
 	err := scanner.Scan(
 		&record.ID, &record.ProjectID, &record.ProjectName, &record.ProjectSlug, &record.Method, &record.Path, &record.FullURL, &record.QueryJSON,
-		&record.RequestHeadersJSON, &record.RequestBodyPreview, &record.RequestBodySize, &record.RequestContentType,
+		&record.RequestHeadersJSON, &record.RequestFilesJSON, &record.RequestBodyPreview, &record.RequestBodySize, &record.RequestContentType,
 		&requestBodyTruncated, &requestBodyBinary, &record.ResponseStatus, &record.ResponseHeadersJSON,
 		&record.ResponseBodyPreview, &record.ResponseBodySize, &record.ResponseContentType, &responseBodyTruncated,
 		&responseBodyBinary, &record.DurationMS, &record.ErrorMessage, &record.ClientIP, &record.UserAgent, &createdAt,
