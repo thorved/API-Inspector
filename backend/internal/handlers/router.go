@@ -9,11 +9,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
-	"proxylens/backend/internal/config"
-	"proxylens/backend/internal/db"
-	"proxylens/backend/internal/proxy"
-	"proxylens/backend/internal/realtime"
-	"proxylens/backend/web"
+	"api-inspector/backend/internal/config"
+	"api-inspector/backend/internal/db"
+	"api-inspector/backend/internal/proxy"
+	"api-inspector/backend/internal/realtime"
+	"api-inspector/backend/web"
 )
 
 type Handler struct {

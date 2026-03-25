@@ -1,4 +1,4 @@
-module proxylens/backend
+module api-inspector/backend
 
 go 1.25.0
 

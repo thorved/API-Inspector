@@ -1,6 +1,6 @@
-# ProxyLens
+# API-Inspector
 
-ProxyLens is a monorepo MVP for proxying API traffic through a Go service, storing request and response history in SQLite, and inspecting the captured exchange in a static Next.js dashboard.
+API-Inspector is a monorepo MVP for proxying API traffic through a Go service, storing request and response history in SQLite, and inspecting the captured exchange in a static Next.js dashboard.
 
 ## Stack
 
@@ -21,7 +21,7 @@ From [backend](/E:/github/thorved/API-Inspector/backend):
 
 ```powershell
 go install github.com/air-verse/air@latest
-$env:PROXYLENS_FRONTEND_DEV_URL="http://localhost:3000"
+$env:API_INSPECTOR_FRONTEND_DEV_URL="http://localhost:3000"
 air -c .air.toml
 ```
 
@@ -59,7 +59,7 @@ That will:
 
 - build the static frontend
 - copy it into [backend/web/dist](/E:/github/thorved/API-Inspector/backend/web/dist)
-- compile `dist/proxylens.exe`
+- compile `dist/api-inspector.exe`
 
 ### Docker
 
@@ -84,7 +84,7 @@ This builds the frontend and backend together in the container image and persist
 ## Notes
 
 - All captured headers are stored and returned exactly as received, including `Authorization`, `Cookie`, `Set-Cookie`, API keys, and token/password-style names.
-- Text payloads are stored in full by default. Set `PROXYLENS_BODY_PREVIEW_LIMIT` to a positive byte limit if you want truncation instead.
+- Text payloads are stored in full by default. Set `API_INSPECTOR_BODY_PREVIEW_LIMIT` to a positive byte limit if you want truncation instead.
 - Binary payloads are detected and omitted from inline previews.
 - The MVP currently has no user auth, retries, workspaces, or replay support.
 - During development, the Go app serves APIs while Next serves the UI separately for fast hot reload.

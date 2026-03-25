@@ -1,16 +1,16 @@
 services:
-  proxylens:
+  api-inspector:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
     environment:
-      PROXYLENS_ENV: production
-      PROXYLENS_ADDR: :8080
-      PROXYLENS_DB_PATH: /app/data/proxylens.db
+      API_INSPECTOR_ENV: production
+      API_INSPECTOR_ADDR: :8080
+      API_INSPECTOR_DB_PATH: /app/data/api-inspector.db
     volumes:
-      - proxylens-data:/app/data
+      - api-inspector-data:/app/data
 
 volumes:
-  proxylens-data:
+  api-inspector-data:

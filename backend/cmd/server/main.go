@@ -11,12 +11,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
-	"proxylens/backend/internal/config"
-	"proxylens/backend/internal/db"
-	"proxylens/backend/internal/handlers"
-	"proxylens/backend/internal/logging"
-	"proxylens/backend/internal/proxy"
-	"proxylens/backend/internal/realtime"
+	"api-inspector/backend/internal/config"
+	"api-inspector/backend/internal/db"
+	"api-inspector/backend/internal/handlers"
+	"api-inspector/backend/internal/logging"
+	"api-inspector/backend/internal/proxy"
+	"api-inspector/backend/internal/realtime"
 )
 
 func main() {
@@ -52,7 +52,7 @@ func main() {
 	}
 
 	go func() {
-		logger.Info("ProxyLens listening",
+		logger.Info("API-Inspector listening",
 			zap.String("address", cfg.Address),
 			zap.String("database", cfg.DatabasePath),
 		)

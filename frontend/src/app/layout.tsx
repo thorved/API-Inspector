@@ -14,7 +14,7 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ProxyLens",
+  title: "API-Inspector",
   description: "Inspect proxied API traffic in one live debugging workspace.",
 };
 

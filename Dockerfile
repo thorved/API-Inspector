@@ -16,20 +16,20 @@ RUN go mod download
 COPY backend/ ./
 COPY --from=frontend-builder /app/frontend/out ./web/dist
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /proxylens ./cmd/server
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /api-inspector ./cmd/server
 
 FROM debian:bookworm-slim
 WORKDIR /app
 
-RUN useradd --system --create-home proxylens
+RUN useradd --system --create-home api-inspector
 
-COPY --from=backend-builder /proxylens /app/proxylens
+COPY --from=backend-builder /api-inspector /app/api-inspector
 
-RUN mkdir -p /app/data && chown -R proxylens:proxylens /app
+RUN mkdir -p /app/data && chown -R api-inspector:api-inspector /app
 
-USER proxylens
+USER api-inspector
 
-ENV PROXYLENS_ADDR=:8080
+ENV API_INSPECTOR_ADDR=:8080
 EXPOSE 8080
 
-CMD ["/app/proxylens"]
+CMD ["/app/api-inspector"]

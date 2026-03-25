@@ -22,7 +22,7 @@ Copy-Item (Join-Path $frontendOut "*") $backendDist -Recurse -Force
 Write-Host "Building Windows executable..."
 New-Item -ItemType Directory -Force -Path $binDir | Out-Null
 Push-Location $backend
-go build -o (Join-Path $binDir "proxylens.exe") ./cmd/server
+go build -o (Join-Path $binDir "api-inspector.exe") ./cmd/server
 Pop-Location
 
-Write-Host "Release build complete: $binDir\\proxylens.exe"
+Write-Host "Release build complete: $binDir\\api-inspector.exe"
