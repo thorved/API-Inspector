@@ -157,6 +157,7 @@
 .methodPill {
   background: rgba(59, 130, 246, 0.16);
   color: #1d4ed8;
+  flex: none;
 }
 
 .inspectorMuted {
@@ -197,10 +198,17 @@
 
 .sidebarRequest {
   width: 100%;
-  border-bottom: 1px solid var(--inspector-border-soft);
-  background: transparent;
-  padding: 1rem;
+  border: 1px solid var(--inspector-border-soft);
+  border-radius: 1rem;
+  background: var(--inspector-panel);
+  padding: 0.75rem;
   color: inherit;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.02);
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
 }
 
 .sidebarRequest button {
@@ -208,11 +216,122 @@
 }
 
 .sidebarRequest:hover {
-  background: var(--inspector-hover);
+  background: color-mix(in srgb, var(--inspector-hover) 72%, white 28%);
+  border-color: rgba(59, 130, 246, 0.18);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
 }
 
 .sidebarRequestActive {
   background: var(--inspector-active);
+  border-color: rgba(59, 130, 246, 0.3);
+  box-shadow: 0 10px 24px rgba(59, 130, 246, 0.12);
+}
+
+.sidebarRequest:focus-within {
+  border-color: rgba(59, 130, 246, 0.38);
+  box-shadow:
+    0 0 0 3px rgba(37, 99, 235, 0.09),
+    0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.sidebarRequestTopRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+}
+
+.sidebarRequestContent {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+}
+
+.sidebarRequestHeadline {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.sidebarRequestPath {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.sidebarRequestUrl {
+  margin-top: 0.38rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.sidebarRequestFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  margin-top: 0.55rem;
+}
+
+.sidebarRequestMetrics {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.sidebarRequestMetric {
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.sidebarRequestError {
+  min-width: 0;
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.7rem;
+  text-align: right;
+}
+
+.sidebarDeleteButton {
+  flex: none;
+  min-width: 2rem;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.9rem;
+  line-height: 1;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateX(4px);
+  transition:
+    opacity 140ms ease,
+    visibility 140ms ease,
+    transform 140ms ease,
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+.sidebarRequest:hover .sidebarDeleteButton,
+.sidebarRequest:focus-within .sidebarDeleteButton {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(0);
 }
 
 .inspectorShell {
@@ -233,7 +352,9 @@
   flex-shrink: 0;
   flex-direction: column;
   border-bottom: 1px solid var(--inspector-border);
-  background: var(--inspector-sidebar);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 18%),
+    var(--inspector-sidebar);
 }
 
 .inspectorSidebarList {
@@ -241,18 +362,28 @@
   flex: 1;
   overflow-y: auto;
   overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.75rem;
 }
 
 .inspectorSidebarTop,
 .inspectorSidebarBottom,
 .inspectorHead {
   border-bottom: 1px solid var(--inspector-border);
-  padding: 0.9rem 1rem;
+  padding: 0.85rem 0.95rem;
 }
 
 .inspectorSidebarBottom {
   border-top: 1px solid var(--inspector-border);
   border-bottom: 0;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.inspectorSidebarTop {
+  background: rgba(255, 255, 255, 0.34);
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .inspectorPane {
@@ -471,6 +602,12 @@
   color: #bfdbfe;
 }
 
+.page[data-theme="dark"] .inspectorSidebarTop,
+.page[data-theme="dark"] .inspectorSidebarBottom {
+  background: rgba(24, 24, 24, 0.76);
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.03);
+}
+
 @keyframes pulse {
   0% {
     box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.28);
@@ -490,6 +627,16 @@
   .inspectorKvRowCompact {
     grid-template-columns: 1fr;
   }
+
+  .sidebarRequestFooter {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .sidebarRequestError {
+    max-width: 100%;
+    text-align: left;
+  }
 }
 
 @media (min-width: 1280px) {
@@ -498,7 +645,7 @@
   }
 
   .inspectorSidebar {
-    width: 360px;
+    width: 332px;
     border-right: 1px solid var(--inspector-border);
     border-bottom: 0;
   }

@@ -86,34 +86,38 @@ function AppNavbar() {
   return (
     <nav className={styles.nav} data-theme={theme} data-variant={variant}>
       <div className={styles.inner}>
-        <div className={styles.brandRow}>
+        <div className={styles.leftCluster}>
           <Link className={styles.brand} href="/">
-            API-Inspector
+            <span className={styles.brandMark} aria-hidden="true" />
+            <span className={styles.brandText}>API-Inspector</span>
           </Link>
-          <Link
-            className={cx(
-              styles.navButton,
-              isDashboard && styles.navButtonActive,
-            )}
-            href="/dashboard"
-          >
-            Traffic workspace
-          </Link>
-          <Link
-            className={cx(
-              styles.navButton,
-              isProjects && styles.navButtonActive,
-            )}
-            href="/projects"
-          >
-            Projects
-          </Link>
+          <div className={styles.navRail}>
+            <Link
+              className={cx(
+                styles.navButton,
+                isDashboard && styles.navButtonActive,
+              )}
+              href="/dashboard"
+            >
+              Traffic workspace
+            </Link>
+            <Link
+              className={cx(
+                styles.navButton,
+                isProjects && styles.navButtonActive,
+              )}
+              href="/projects"
+            >
+              Projects
+            </Link>
+          </div>
         </div>
 
-        <div className={styles.actionsRow}>
+        <div className={styles.themeSwitch}>
           <button
             className={cx(
               styles.navButton,
+              styles.themeButton,
               theme === "light" && styles.navButtonActive,
             )}
             onClick={() => setTheme("light")}
@@ -124,6 +128,7 @@ function AppNavbar() {
           <button
             className={cx(
               styles.navButton,
+              styles.themeButton,
               theme === "dark" && styles.navButtonActive,
             )}
             onClick={() => setTheme("dark")}

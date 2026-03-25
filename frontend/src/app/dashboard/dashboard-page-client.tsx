@@ -147,48 +147,72 @@ export function DashboardPageClient() {
                   )}
                   key={log.id}
                 >
-                  <div className="flex items-start gap-3">
+                  <div className={styles.sidebarRequestTopRow}>
                     <button
-                      className="min-w-0 flex-1 text-left"
+                      className={styles.sidebarRequestContent}
                       onClick={() => handleSelectLog(log.id)}
                       type="button"
                     >
-                      <div className="flex items-start justify-between gap-3">
+                      <div className={styles.sidebarRequestHeadline}>
                         <span className={styles.methodPill}>{log.method}</span>
-                        <span className={cx(styles.inspectorMuted, "text-xs")}>
-                          {formatTime(log.createdAt)}
-                        </span>
-                      </div>
-                      <div className="mt-3 text-left">
-                        <div
+                        <span
                           className={cx(
                             styles.inspectorStrong,
-                            "truncate font-medium",
+                            styles.sidebarRequestPath,
                           )}
                         >
                           {log.path}
-                        </div>
-                        <div
-                          className={cx(
-                            styles.inspectorMuted,
-                            "mt-1 truncate text-xs",
-                          )}
-                        >
-                          {log.fullUrl}
-                        </div>
-                      </div>
-                      <div className="mt-3 flex items-center justify-between gap-3">
-                        <StatusBadge
-                          hasError={log.hasError}
-                          status={log.responseStatus}
-                        />
-                        <span className={cx(styles.inspectorSoft, "text-xs")}>
-                          {log.durationMs} ms
                         </span>
+                      </div>
+                      <div
+                        className={cx(
+                          styles.inspectorMuted,
+                          styles.sidebarRequestUrl,
+                        )}
+                      >
+                        {log.fullUrl}
+                      </div>
+                      <div className={styles.sidebarRequestFooter}>
+                        <div className={styles.sidebarRequestMetrics}>
+                          <StatusBadge
+                            hasError={log.hasError}
+                            status={log.responseStatus}
+                          />
+                          <span
+                            className={cx(
+                              styles.inspectorSoft,
+                              styles.sidebarRequestMetric,
+                            )}
+                          >
+                            {log.durationMs} ms
+                          </span>
+                          <span
+                            className={cx(
+                              styles.inspectorMuted,
+                              styles.sidebarRequestMetric,
+                            )}
+                          >
+                            {formatTime(log.createdAt)}
+                          </span>
+                        </div>
+                        {log.errorMessage ? (
+                          <span
+                            className={cx(
+                              styles.inspectorMuted,
+                              styles.sidebarRequestError,
+                            )}
+                            title={log.errorMessage}
+                          >
+                            {log.errorMessage}
+                          </span>
+                        ) : null}
                       </div>
                     </button>
                     <button
-                      className={cx(styles.inspectorIconButton, "mt-0.5")}
+                      className={cx(
+                        styles.inspectorIconButton,
+                        styles.sidebarDeleteButton,
+                      )}
                       disabled={deletingLogID === log.id}
                       onClick={() => void handleDeleteLog(log.id)}
                       type="button"
