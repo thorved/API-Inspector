@@ -97,6 +97,7 @@ export function useInspectorWorkspace({
   const [isSavingProject, setIsSavingProject] = useState(false);
   const [isClearingLogs, setIsClearingLogs] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [projectFormErrorMessage, setProjectFormErrorMessage] = useState("");
   const [_liveFeed, setLiveFeed] = useState<LogSummary[]>([]);
   const [form, setForm] = useState<CreateProjectInput>({
     name: "",
@@ -336,6 +337,7 @@ export function useInspectorWorkspace({
   async function handleSubmitProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSavingProject(true);
+    setProjectFormErrorMessage("");
 
     try {
       const saved = editingProjectSlug
@@ -350,9 +352,10 @@ export function useInspectorWorkspace({
       setSelectedLog("");
       updateQuery({ project: saved.slug, log: "" });
       setErrorMessage("");
+      setProjectFormErrorMessage("");
       return true;
     } catch (error) {
-      setErrorMessage(toMessage(error));
+      setProjectFormErrorMessage(toMessage(error));
       return false;
     } finally {
       setIsSavingProject(false);
@@ -366,19 +369,21 @@ export function useInspectorWorkspace({
       baseUrl: project.baseUrl,
     });
     setEditingProjectSlug(project.slug);
-    setErrorMessage("");
+    setProjectFormErrorMessage("");
   }
 
   function handleCancelProjectEdit() {
     setForm({ name: "", slug: "", baseUrl: "" });
     setEditingProjectSlug("");
+    setProjectFormErrorMessage("");
+  }
+
+  function handleProjectFormChange(value: CreateProjectInput) {
+    setForm(value);
+    setProjectFormErrorMessage("");
   }
 
   async function handleDeleteProject(slug: string) {
-    if (!window.confirm("Delete this project and all of its captured logs?")) {
-      return;
-    }
-
     setDeletingProjectSlug(slug);
 
     try {
@@ -410,8 +415,10 @@ export function useInspectorWorkspace({
       }
 
       setErrorMessage("");
+      return true;
     } catch (error) {
       setErrorMessage(toMessage(error));
+      return false;
     } finally {
       setDeletingProjectSlug("");
     }
@@ -513,6 +520,7 @@ export function useInspectorWorkspace({
     handleDeleteLog,
     handleDeleteProject,
     handleEditProject,
+    handleProjectFormChange,
     handleLoadMore,
     handleProjectChange,
     handleSelectLog,
@@ -523,12 +531,12 @@ export function useInspectorWorkspace({
     logs,
     method,
     nextCursor,
+    projectFormErrorMessage,
     projects,
     search,
     selectedLog,
     selectedProject,
     selectedProjectRecord,
-    setForm,
     setMethod,
     setSearch,
     setStatus,

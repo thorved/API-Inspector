@@ -54,6 +54,7 @@ export function ProjectsFrame({
 
 export function ProjectFormModal({
   editingProjectSlug,
+  errorMessage,
   form,
   isOpen,
   isSavingProject,
@@ -62,6 +63,7 @@ export function ProjectFormModal({
   onSubmit,
 }: {
   editingProjectSlug: string;
+  errorMessage?: string;
   form: CreateProjectInput;
   isOpen: boolean;
   isSavingProject: boolean;
@@ -144,6 +146,9 @@ export function ProjectFormModal({
           </button>
         </div>
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
+          {errorMessage ? (
+            <section className={styles.workspaceAlert}>{errorMessage}</section>
+          ) : null}
           <label className="block space-y-2">
             <span className={styles.label}>Project name</span>
             <input
@@ -178,7 +183,14 @@ export function ProjectFormModal({
               value={form.baseUrl}
             />
           </label>
-          <div className="flex flex-wrap gap-3">
+          <div className={styles.modalActions}>
+            <button
+              className={styles.secondaryButton}
+              onClick={onCancelEdit}
+              type="button"
+            >
+              Cancel
+            </button>
             <button
               className={styles.primaryButton}
               disabled={isSavingProject}
@@ -191,13 +203,6 @@ export function ProjectFormModal({
                 : isEditing
                   ? "Save changes"
                   : "Create project"}
-            </button>
-            <button
-              className={styles.secondaryButton}
-              onClick={onCancelEdit}
-              type="button"
-            >
-              Cancel
             </button>
           </div>
         </form>
@@ -217,7 +222,7 @@ export function ProjectSidebar({
 }: {
   deletingProjectSlug: string;
   isLoading: boolean;
-  onDeleteProject: (slug: string) => Promise<void>;
+  onDeleteProject: (project: Project) => void;
   onEditProject: (project: Project) => void;
   onSelectProject: (slug: string) => void;
   projects: Project[];
@@ -305,7 +310,7 @@ export function ProjectSidebar({
                       aria-label={`Delete ${project.name}`}
                       className={styles.dangerIconButton}
                       disabled={deletingProjectSlug === project.slug}
-                      onClick={() => void onDeleteProject(project.slug)}
+                      onClick={() => onDeleteProject(project)}
                       title="Delete project"
                       type="button"
                     >
@@ -327,6 +332,116 @@ export function ProjectSidebar({
         )}
       </div>
     </aside>
+  );
+}
+
+export function ProjectDeleteModal({
+  deletingProjectSlug,
+  isOpen,
+  onCancel,
+  onConfirm,
+  project,
+}: {
+  deletingProjectSlug: string;
+  isOpen: boolean;
+  onCancel: () => void;
+  onConfirm: () => Promise<boolean>;
+  project: Project | null;
+}) {
+  const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
+  const isDeleting = project ? deletingProjectSlug === project.slug : false;
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    cancelButtonRef.current?.focus();
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !isDeleting) {
+        onCancel();
+      }
+    };
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isDeleting, isOpen, onCancel]);
+
+  if (!isOpen || !project) {
+    return null;
+  }
+
+  return (
+    <div className={styles.modalBackdrop}>
+      <button
+        aria-label="Close delete confirmation"
+        className={styles.modalDismiss}
+        disabled={isDeleting}
+        onClick={onCancel}
+        type="button"
+      />
+      <div
+        aria-labelledby="delete-project-modal-title"
+        aria-modal="true"
+        className={styles.projectModal}
+        role="dialog"
+      >
+        <div className={styles.badge}>Delete project</div>
+        <div className="mt-4 flex items-start justify-between gap-4">
+          <div>
+            <h2
+              className={styles.workspaceTitle}
+              id="delete-project-modal-title"
+            >
+              Delete {project.name}?
+            </h2>
+            <p className={cx(styles.workspaceMuted, "mt-2 text-sm")}>
+              This removes the project and all of its captured logs. This action
+              cannot be undone.
+            </p>
+          </div>
+        </div>
+        <div className="mt-6 space-y-4">
+          <section className={styles.workspaceAlert}>
+            <div className={styles.modalWarningTitle}>Project</div>
+            <div className={styles.modalWarningValue}>{project.name}</div>
+            <div className={styles.modalWarningMeta}>/proxy/{project.slug}</div>
+          </section>
+          <div className={styles.modalActions}>
+            <button
+              className={styles.secondaryButton}
+              disabled={isDeleting}
+              onClick={onCancel}
+              ref={cancelButtonRef}
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              className={styles.dangerButton}
+              disabled={isDeleting}
+              onClick={() => void onConfirm()}
+              type="button"
+            >
+              {isDeleting ? "Deleting..." : "Delete project"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

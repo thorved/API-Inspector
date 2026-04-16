@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { useWorkspaceTheme } from "@/components/app-shell";
+import type { Project } from "@/types/api";
 import { useInspectorWorkspace } from "../use-inspector-workspace";
 import styles from "./projects.module.css";
 import {
+  ProjectDeleteModal,
   ProjectDetailsPane,
   ProjectFormModal,
   ProjectSidebar,
@@ -19,6 +21,8 @@ function cx(...values: Array<string | false | null | undefined>) {
 
 export function ProjectsPageClient() {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [projectPendingDelete, setProjectPendingDelete] =
+    useState<Project | null>(null);
   const {
     deletingProjectSlug,
     editingProjectSlug,
@@ -27,14 +31,15 @@ export function ProjectsPageClient() {
     handleCancelProjectEdit,
     handleDeleteProject,
     handleEditProject,
+    handleProjectFormChange,
     handleProjectChange,
     handleSubmitProject,
     isLoading,
     isSavingProject,
+    projectFormErrorMessage,
     projects,
     selectedProject,
     selectedProjectRecord,
-    setForm,
     stats,
   } = useInspectorWorkspace({ includeTraffic: true });
   const { theme } = useWorkspaceTheme();
@@ -56,6 +61,21 @@ export function ProjectsPageClient() {
     setIsProjectModalOpen(false);
   }
 
+  function handleOpenDeleteModal(project: Project) {
+    setProjectPendingDelete(project);
+  }
+
+  function handleCloseDeleteModal() {
+    if (
+      projectPendingDelete &&
+      deletingProjectSlug === projectPendingDelete.slug
+    ) {
+      return;
+    }
+
+    setProjectPendingDelete(null);
+  }
+
   async function handleProjectSubmit(
     event: Parameters<typeof handleSubmitProject>[0],
   ) {
@@ -66,6 +86,19 @@ export function ProjectsPageClient() {
     }
 
     return saved;
+  }
+
+  async function handleConfirmDeleteProject() {
+    if (!projectPendingDelete) {
+      return false;
+    }
+
+    const deleted = await handleDeleteProject(projectPendingDelete.slug);
+    if (deleted) {
+      setProjectPendingDelete(null);
+    }
+
+    return deleted;
   }
 
   return (
@@ -105,7 +138,7 @@ export function ProjectsPageClient() {
           <ProjectSidebar
             deletingProjectSlug={deletingProjectSlug}
             isLoading={isLoading}
-            onDeleteProject={handleDeleteProject}
+            onDeleteProject={handleOpenDeleteModal}
             onEditProject={handleOpenEditModal}
             onSelectProject={handleProjectChange}
             projects={projects}
@@ -121,12 +154,20 @@ export function ProjectsPageClient() {
 
       <ProjectFormModal
         editingProjectSlug={editingProjectSlug}
+        errorMessage={projectFormErrorMessage}
         form={form}
         isOpen={isProjectModalOpen}
         isSavingProject={isSavingProject}
         onCancelEdit={handleCloseProjectModal}
-        onChange={setForm}
+        onChange={handleProjectFormChange}
         onSubmit={handleProjectSubmit}
+      />
+      <ProjectDeleteModal
+        deletingProjectSlug={deletingProjectSlug}
+        isOpen={projectPendingDelete !== null}
+        onCancel={handleCloseDeleteModal}
+        onConfirm={handleConfirmDeleteProject}
+        project={projectPendingDelete}
       />
     </ProjectsFrame>
   );
