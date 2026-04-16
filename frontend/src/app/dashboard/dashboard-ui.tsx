@@ -230,8 +230,8 @@ export function WatchRequestsModal({
         className={cx(styles.inspectorModal, styles.watchModal)}
         role="dialog"
       >
-        <div className="flex items-start justify-between gap-4">
-          <div>
+        <div className={styles.watchModalHeader}>
+          <div className={styles.watchModalTitleBlock}>
             <div
               className={cx(
                 styles.inspectorMuted,
@@ -249,14 +249,22 @@ export function WatchRequestsModal({
             >
               {pending.length} pending request{pending.length === 1 ? "" : "s"}
             </div>
+            <p className={styles.watchModalDescription}>
+              Review captured requests before they are forwarded upstream.
+            </p>
           </div>
-          <button
-            className={styles.inspectorIconButton}
-            onClick={onClose}
-            type="button"
-          >
-            Close
-          </button>
+          <div className={styles.watchModalHeaderActions}>
+            <span className={styles.watchModalCountChip}>
+              {pending.length} waiting
+            </span>
+            <button
+              className={styles.inspectorIconButton}
+              onClick={onClose}
+              type="button"
+            >
+              Close
+            </button>
+          </div>
         </div>
 
         <div className={styles.watchQueueList}>
@@ -265,8 +273,8 @@ export function WatchRequestsModal({
 
             return (
               <section className={styles.watchQueueCard} key={request.id}>
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
+                <div className={styles.watchQueueHead}>
+                  <div className={styles.watchQueueIdentity}>
                     <div className={styles.watchQueueMeta}>
                       <span className={styles.methodPill}>
                         {request.method}
@@ -280,9 +288,25 @@ export function WatchRequestsModal({
                         {request.path}
                       </span>
                     </div>
-                    <div className={cx(styles.inspectorMuted, "mt-2 text-xs")}>
-                      Queue #{index + 1} · received{" "}
-                      {formatDateTime(request.createdAt)}
+                    <div className={styles.watchQueueSubline}>
+                      <span className={styles.watchQueueChip}>
+                        {request.projectSlug}
+                      </span>
+                      <span className={styles.watchQueueChip}>
+                        Queue #{index + 1}
+                      </span>
+                      <span className={styles.watchQueueChip}>
+                        Received {formatDateTime(request.createdAt)}
+                      </span>
+                      <span className={styles.watchQueueChip}>
+                        Expires {formatDateTime(request.expiresAt)}
+                      </span>
+                    </div>
+                    <div className={cx(styles.inspectorMuted, "mt-3 text-xs")}>
+                      Forward to{" "}
+                      <span className={styles.inspectorStrong}>
+                        {request.fullUrl}
+                      </span>
                     </div>
                   </div>
                   <div className={styles.watchModalActions}>
@@ -308,32 +332,43 @@ export function WatchRequestsModal({
                   </div>
                 </div>
 
-                <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+                <div className={styles.watchQueueOverviewGrid}>
                   <div
                     className={cx(
                       styles.inspectorCardSurface,
                       styles.inspectorPanel,
                     )}
                   >
-                    <KeyValueRows
-                      compact
-                      items={[
-                        {
-                          label: "Upstream URL",
-                          value: request.fullUrl,
-                          mono: true,
-                        },
-                        { label: "Client IP", value: request.clientIp || "-" },
-                        {
-                          label: "User Agent",
-                          value: request.userAgent || "-",
-                        },
-                        {
-                          label: "Expires",
-                          value: formatDateTime(request.expiresAt),
-                        },
-                      ]}
-                    />
+                    <SectionLabel title="Request overview" />
+                    <div className="mt-3">
+                      <KeyValueRows
+                        compact
+                        items={[
+                          {
+                            label: "Full URL",
+                            value: request.fullUrl,
+                            mono: true,
+                          },
+                          { label: "Project", value: request.projectSlug },
+                          {
+                            label: "Client IP",
+                            value: request.clientIp || "-",
+                          },
+                          {
+                            label: "User Agent",
+                            value: request.userAgent || "-",
+                          },
+                          {
+                            label: "Received",
+                            value: formatDateTime(request.createdAt),
+                          },
+                          {
+                            label: "Expires",
+                            value: formatDateTime(request.expiresAt),
+                          },
+                        ]}
+                      />
+                    </div>
                   </div>
                   <div
                     className={cx(
@@ -353,7 +388,7 @@ export function WatchRequestsModal({
                   </div>
                 </div>
 
-                <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                <div className={styles.watchQueueBodyGrid}>
                   <section className={styles.inspectorSection}>
                     <div className="px-4 pt-4">
                       <SectionLabel title="Query strings" />
