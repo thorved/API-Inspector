@@ -1,15 +1,24 @@
 "use client";
 
+import Link from "next/link";
+import { useState } from "react";
+
 import { useWorkspaceTheme } from "@/components/app-shell";
 import { useInspectorWorkspace } from "../use-inspector-workspace";
 import styles from "./projects.module.css";
-import { ProjectForm, ProjectList, ProjectsFrame } from "./projects-ui";
+import {
+  ProjectDetailsPane,
+  ProjectFormModal,
+  ProjectSidebar,
+  ProjectsFrame,
+} from "./projects-ui";
 
 function cx(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
 }
 
 export function ProjectsPageClient() {
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const {
     deletingProjectSlug,
     editingProjectSlug,
@@ -20,70 +29,143 @@ export function ProjectsPageClient() {
     handleEditProject,
     handleProjectChange,
     handleSubmitProject,
+    isLoading,
     isSavingProject,
     projects,
     selectedProject,
+    selectedProjectRecord,
     setForm,
-  } = useInspectorWorkspace();
+    stats,
+  } = useInspectorWorkspace({ includeTraffic: true });
   const { theme } = useWorkspaceTheme();
+
+  function handleOpenCreateModal() {
+    handleCancelProjectEdit();
+    setIsProjectModalOpen(true);
+  }
+
+  function handleOpenEditModal(
+    project: Parameters<typeof handleEditProject>[0],
+  ) {
+    handleEditProject(project);
+    setIsProjectModalOpen(true);
+  }
+
+  function handleCloseProjectModal() {
+    handleCancelProjectEdit();
+    setIsProjectModalOpen(false);
+  }
+
+  async function handleProjectSubmit(
+    event: Parameters<typeof handleSubmitProject>[0],
+  ) {
+    const saved = await handleSubmitProject(event);
+
+    if (saved) {
+      setIsProjectModalOpen(false);
+    }
+
+    return saved;
+  }
 
   return (
     <ProjectsFrame errorMessage={errorMessage} theme={theme}>
-      <section className={cx(styles.glassPanel, styles.workspaceHero, "p-6")}>
-        <div className={styles.badge}>Project workspace</div>
-        <div className="mt-5 grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
-          <div>
-            <h1 className={styles.workspaceDisplay}>
-              Separate project setup with theme-aware controls and cleaner copy
-              targets.
-            </h1>
-            <p
-              className={cx(
-                styles.workspaceMuted,
-                "mt-4 max-w-2xl text-base leading-7 sm:text-lg",
-              )}
-            >
-              Manage proxy routes here, keep dashboard traffic review on its own
-              page, and switch light or dark mode without losing contrast on the
-              project cards and forms.
-            </p>
+      <section
+        className={cx(
+          styles.glassPanel,
+          styles.tablePanel,
+          "flex h-full min-h-0 flex-1 flex-col p-5",
+        )}
+      >
+        <div className={styles.tableToolbar}>
+          <div className={styles.toolbarSummary}>
+            <div className={styles.workspaceCaption}>Total Projects</div>
+            <div className={styles.toolbarCount}>{projects.length}</div>
           </div>
-          <div className={styles.workspaceHeroAside}>
-            <div className={styles.workspaceCaption}>Configured projects</div>
-            <div
-              className={cx(
-                styles.workspaceStrong,
-                "mt-2 text-4xl font-semibold",
-              )}
+          <div className="flex flex-wrap gap-2">
+            <button
+              className={cx(styles.primaryButton, styles.toolbarButton)}
+              onClick={handleOpenCreateModal}
+              type="button"
             >
-              {projects.length}
-            </div>
-            <p className={cx(styles.workspaceMuted, "mt-3 text-sm leading-6")}>
-              Pick a project to make it the active workspace for the dashboard,
-              or update the slug and upstream URL from the editor below.
-            </p>
+              <PlusIcon />
+              <span>Add Project</span>
+            </button>
+            <Link
+              className={cx(styles.secondaryButton, styles.toolbarButton)}
+              href="/dashboard"
+            >
+              <DashboardIcon />
+              <span>Dashboard</span>
+            </Link>
           </div>
+        </div>
+
+        <div className={styles.projectsShell}>
+          <ProjectSidebar
+            deletingProjectSlug={deletingProjectSlug}
+            isLoading={isLoading}
+            onDeleteProject={handleDeleteProject}
+            onEditProject={handleOpenEditModal}
+            onSelectProject={handleProjectChange}
+            projects={projects}
+            selectedProject={selectedProject}
+          />
+          <ProjectDetailsPane
+            onEditProject={handleOpenEditModal}
+            project={selectedProjectRecord}
+            stats={stats}
+          />
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <ProjectForm
-          editingProjectSlug={editingProjectSlug}
-          form={form}
-          isSavingProject={isSavingProject}
-          onCancelEdit={handleCancelProjectEdit}
-          onChange={setForm}
-          onSubmit={handleSubmitProject}
-        />
-        <ProjectList
-          deletingProjectSlug={deletingProjectSlug}
-          onDeleteProject={handleDeleteProject}
-          onEditProject={handleEditProject}
-          onSelectProject={handleProjectChange}
-          projects={projects}
-          selectedProject={selectedProject}
-        />
-      </section>
+      <ProjectFormModal
+        editingProjectSlug={editingProjectSlug}
+        form={form}
+        isOpen={isProjectModalOpen}
+        isSavingProject={isSavingProject}
+        onCancelEdit={handleCloseProjectModal}
+        onChange={setForm}
+        onSubmit={handleProjectSubmit}
+      />
     </ProjectsFrame>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="16"
+      viewBox="0 0 16 16"
+      width="16"
+    >
+      <path
+        d="M8 3.333v9.334M3.333 8h9.334"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.5"
+      />
+    </svg>
+  );
+}
+
+function DashboardIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="16"
+      viewBox="0 0 16 16"
+      width="16"
+    >
+      <path
+        d="M3.333 3.333h4v4h-4zm5.334 0h4v2.667h-4zm0 4h4v5.334h-4zm-5.334 1.334h4v4h-4z"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="1.3"
+      />
+    </svg>
   );
 }

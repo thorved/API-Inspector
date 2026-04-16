@@ -350,8 +350,10 @@ export function useInspectorWorkspace({
       setSelectedLog("");
       updateQuery({ project: saved.slug, log: "" });
       setErrorMessage("");
+      return true;
     } catch (error) {
       setErrorMessage(toMessage(error));
+      return false;
     } finally {
       setIsSavingProject(false);
     }

@@ -32,6 +32,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<WorkspaceTheme>("light");
   const pathname = usePathname();
   const isDashboard = pathname.startsWith("/dashboard");
+  const isProjects = pathname.startsWith("/projects");
+  const isWorkspacePage = isDashboard || isProjects;
 
   useEffect(() => {
     const savedTheme = window.localStorage.getItem(
@@ -54,11 +56,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div
         className={cx(
           "flex flex-col",
-          isDashboard ? "h-screen overflow-hidden" : "min-h-screen",
+          isWorkspacePage ? "h-screen overflow-hidden" : "min-h-screen",
         )}
       >
         <AppNavbar />
-        <div className={cx("flex-1 min-h-0", isDashboard && "overflow-hidden")}>
+        <div
+          className={cx("flex-1 min-h-0", isWorkspacePage && "overflow-hidden")}
+        >
           {children}
         </div>
       </div>
