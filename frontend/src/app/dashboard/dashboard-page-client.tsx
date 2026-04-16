@@ -10,6 +10,7 @@ import {
 } from "../use-inspector-workspace";
 import styles from "./dashboard.module.css";
 import {
+  ConfirmActionModal,
   DashboardFrame,
   formatDateTime,
   formatTime,
@@ -61,6 +62,14 @@ export function DashboardPageClient() {
   } = useInspectorWorkspace({ includeTraffic: true });
   const { theme } = useWorkspaceTheme();
   const [isWatchModalOpen, setIsWatchModalOpen] = useState(false);
+  const [isClearModalOpen, setIsClearModalOpen] = useState(false);
+  const [logPendingDelete, setLogPendingDelete] = useState<{
+    id: string;
+    method: string;
+    path: string;
+    fullUrl: string;
+    createdAt: string;
+  } | null>(null);
   const [activeRequestTab, setActiveRequestTab] = useState<
     "overview" | "headers" | "query" | "body" | "files"
   >("overview");
@@ -96,6 +105,45 @@ export function DashboardPageClient() {
     }
   }, [activeRequestTab, activeResponseTab, detail]);
 
+  useEffect(() => {
+    if (!logPendingDelete) {
+      return;
+    }
+
+    const stillExists = logs.some((log) => log.id === logPendingDelete.id);
+    if (!stillExists) {
+      setLogPendingDelete(null);
+    }
+  }, [logPendingDelete, logs]);
+
+  function openDeleteLogModal(log: {
+    id: string;
+    method: string;
+    path: string;
+    fullUrl: string;
+    createdAt: string;
+  }) {
+    setLogPendingDelete(log);
+  }
+
+  async function handleConfirmDeleteLog() {
+    if (!logPendingDelete) {
+      return;
+    }
+
+    const deleted = await handleDeleteLog(logPendingDelete.id);
+    if (deleted) {
+      setLogPendingDelete(null);
+    }
+  }
+
+  async function handleConfirmClearLogs() {
+    const cleared = await handleClearCapturedRequests();
+    if (cleared) {
+      setIsClearModalOpen(false);
+    }
+  }
+
   return (
     <DashboardFrame errorMessage={errorMessage} theme={theme}>
       <div className={styles.inspectorShell}>
@@ -125,7 +173,7 @@ export function DashboardPageClient() {
                   <button
                     className={styles.inspectorIconButton}
                     disabled={isClearingLogs}
-                    onClick={() => void handleClearCapturedRequests()}
+                    onClick={() => setIsClearModalOpen(true)}
                     type="button"
                   >
                     {isClearingLogs ? "..." : "Clear"}
@@ -275,7 +323,15 @@ export function DashboardPageClient() {
                         styles.sidebarDeleteButton,
                       )}
                       disabled={deletingLogID === log.id}
-                      onClick={() => void handleDeleteLog(log.id)}
+                      onClick={() =>
+                        openDeleteLogModal({
+                          id: log.id,
+                          method: log.method,
+                          path: log.path,
+                          fullUrl: log.fullUrl,
+                          createdAt: log.createdAt,
+                        })
+                      }
                       type="button"
                     >
                       {deletingLogID === log.id ? "..." : "×"}
@@ -335,7 +391,15 @@ export function DashboardPageClient() {
                           <button
                             className={styles.inspectorIconButton}
                             disabled={deletingLogID === detail.id}
-                            onClick={() => void handleDeleteLog(detail.id)}
+                            onClick={() =>
+                              openDeleteLogModal({
+                                id: detail.id,
+                                method: detail.request.method,
+                                path: detail.request.path,
+                                fullUrl: detail.request.url,
+                                createdAt: detail.createdAt,
+                              })
+                            }
                             type="button"
                           >
                             {deletingLogID === detail.id
@@ -679,6 +743,42 @@ export function DashboardPageClient() {
           theme={theme}
         />
       ) : null}
+      <ConfirmActionModal
+        confirmLabel="Clear requests"
+        description="This removes every captured request for the selected project from the dashboard history."
+        isBusy={isClearingLogs}
+        isDestructive
+        isOpen={isClearModalOpen}
+        onCancel={() => setIsClearModalOpen(false)}
+        onConfirm={() => void handleConfirmClearLogs()}
+        title="Clear captured requests?"
+        warningMeta={
+          selectedProjectRecord
+            ? `/proxy/${selectedProjectRecord.slug}`
+            : undefined
+        }
+        warningTitle="Project"
+        warningValue={selectedProjectRecord?.name ?? "Current project"}
+      />
+      <ConfirmActionModal
+        confirmLabel="Remove request"
+        description="This removes the selected captured request from the dashboard history."
+        isBusy={Boolean(
+          logPendingDelete && deletingLogID === logPendingDelete.id,
+        )}
+        isDestructive
+        isOpen={Boolean(logPendingDelete)}
+        onCancel={() => setLogPendingDelete(null)}
+        onConfirm={() => void handleConfirmDeleteLog()}
+        title="Remove captured request?"
+        warningMeta={
+          logPendingDelete
+            ? `${logPendingDelete.method} · ${formatDateTime(logPendingDelete.createdAt)}`
+            : undefined
+        }
+        warningTitle={logPendingDelete?.path ?? "Request"}
+        warningValue={logPendingDelete?.fullUrl ?? ""}
+      />
     </DashboardFrame>
   );
 }

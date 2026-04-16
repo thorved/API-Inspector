@@ -65,6 +65,7 @@
 
 .tabButton,
 .secondaryButton,
+.dangerButton,
 .inspectorIconButton,
 .statusBadge,
 .methodPill,
@@ -79,6 +80,7 @@
 
 .tabButton,
 .secondaryButton,
+.dangerButton,
 .inspectorIconButton {
   display: inline-flex;
   align-items: center;
@@ -93,6 +95,13 @@
   border: 1px solid var(--inspector-border);
   background: var(--inspector-panel);
   color: var(--inspector-text);
+  padding: 0.75rem 1rem;
+}
+
+.dangerButton {
+  border: 1px solid rgba(244, 63, 94, 0.22);
+  background: rgba(244, 63, 94, 0.12);
+  color: #be123c;
   padding: 0.75rem 1rem;
 }
 
@@ -112,6 +121,7 @@
 
 .tabButton:hover,
 .secondaryButton:hover,
+.dangerButton:hover,
 .inspectorIconButton:hover {
   transform: translateY(-1px);
 }
@@ -921,6 +931,84 @@
   overflow: hidden;
 }
 
+.confirmActionModal {
+  width: min(560px, 100%);
+  padding: 1.15rem;
+}
+
+.confirmActionHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.confirmActionBadge {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  border: 1px solid rgba(244, 63, 94, 0.14);
+  border-radius: 999px;
+  background: rgba(244, 63, 94, 0.08);
+  padding: 0.28rem 0.6rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #be123c;
+}
+
+.confirmActionTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.confirmActionDescription {
+  margin: 0;
+  color: var(--inspector-text-muted);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.confirmActionWarning {
+  margin-top: 1rem;
+  border: 1px solid rgba(244, 63, 94, 0.14);
+  border-radius: 0.95rem;
+  background: rgba(244, 63, 94, 0.08);
+  padding: 0.9rem 1rem;
+}
+
+.confirmActionWarningLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #be123c;
+}
+
+.confirmActionWarningValue {
+  margin-top: 0.45rem;
+  color: var(--inspector-text);
+  font-size: 0.95rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.confirmActionWarningMeta {
+  margin-top: 0.32rem;
+  color: var(--inspector-text-soft);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.confirmActionFooter {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
 .watchModalHeader {
   display: flex;
   flex-wrap: wrap;
@@ -1142,6 +1230,23 @@
   color: #86efac;
 }
 
+.page[data-theme="dark"] .dangerButton {
+  border-color: rgba(251, 113, 133, 0.22);
+  background: rgba(159, 18, 57, 0.18);
+  color: #fecdd3;
+}
+
+.page[data-theme="dark"] .confirmActionBadge,
+.page[data-theme="dark"] .confirmActionWarning {
+  border-color: rgba(251, 113, 133, 0.18);
+  background: rgba(159, 18, 57, 0.14);
+}
+
+.page[data-theme="dark"] .confirmActionBadge,
+.page[data-theme="dark"] .confirmActionWarningLabel {
+  color: #fecdd3;
+}
+
 .page[data-theme="dark"] .watchQueueCard {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
@@ -1207,6 +1312,10 @@
   .watchModeCard {
     width: 100%;
     border-radius: 1rem;
+  }
+
+  .confirmActionFooter {
+    flex-direction: column-reverse;
   }
 
   .watchModeSummary {

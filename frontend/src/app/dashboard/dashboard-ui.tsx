@@ -3,7 +3,7 @@
 import JsonView from "@uiw/react-json-view";
 import { darkTheme as jsonDarkTheme } from "@uiw/react-json-view/dark";
 import { lightTheme as jsonLightTheme } from "@uiw/react-json-view/light";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import { buildApiUrl } from "@/lib/api";
 import type { LogDetail, PendingWatchRequest, UploadedFile } from "@/types/api";
@@ -414,6 +414,128 @@ export function WatchRequestsModal({
               </section>
             );
           })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ConfirmActionModal({
+  confirmLabel,
+  description,
+  isBusy,
+  isDestructive = false,
+  isOpen,
+  onCancel,
+  onConfirm,
+  title,
+  warningMeta,
+  warningTitle,
+  warningValue,
+}: {
+  confirmLabel: string;
+  description: string;
+  isBusy: boolean;
+  isDestructive?: boolean;
+  isOpen: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+  title: string;
+  warningMeta?: string;
+  warningTitle: string;
+  warningValue: string;
+}) {
+  const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    cancelButtonRef.current?.focus();
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !isBusy) {
+        onCancel();
+      }
+    };
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isBusy, isOpen, onCancel]);
+
+  if (!isOpen) {
+    return null;
+  }
+
+  return (
+    <div className={styles.inspectorModalBackdrop}>
+      <button
+        aria-label="Close confirmation dialog"
+        className={styles.inspectorModalDismiss}
+        disabled={isBusy}
+        onClick={onCancel}
+        type="button"
+      />
+      <div
+        aria-labelledby="dashboard-confirmation-modal-title"
+        aria-modal="true"
+        className={cx(styles.inspectorModal, styles.confirmActionModal)}
+        role="dialog"
+      >
+        <div className={styles.confirmActionHeader}>
+          <div className={styles.confirmActionBadge}>
+            {isDestructive ? "Confirm removal" : "Confirm action"}
+          </div>
+          <h2
+            className={cx(styles.inspectorStrong, styles.confirmActionTitle)}
+            id="dashboard-confirmation-modal-title"
+          >
+            {title}
+          </h2>
+          <p className={styles.confirmActionDescription}>{description}</p>
+        </div>
+
+        <section className={styles.confirmActionWarning}>
+          <div className={styles.confirmActionWarningLabel}>{warningTitle}</div>
+          <div className={styles.confirmActionWarningValue}>{warningValue}</div>
+          {warningMeta ? (
+            <div className={styles.confirmActionWarningMeta}>{warningMeta}</div>
+          ) : null}
+        </section>
+
+        <div className={styles.confirmActionFooter}>
+          <button
+            className={styles.secondaryButton}
+            disabled={isBusy}
+            onClick={onCancel}
+            ref={cancelButtonRef}
+            type="button"
+          >
+            Cancel
+          </button>
+          <button
+            className={cx(
+              isDestructive ? styles.dangerButton : styles.secondaryButton,
+            )}
+            disabled={isBusy}
+            onClick={onConfirm}
+            type="button"
+          >
+            {isBusy ? "Working..." : confirmLabel}
+          </button>
         </div>
       </div>
     </div>

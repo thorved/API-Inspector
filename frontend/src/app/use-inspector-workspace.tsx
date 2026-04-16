@@ -555,10 +555,6 @@ export function useInspectorWorkspace({
   }
 
   async function handleDeleteLog(logId: string) {
-    if (!window.confirm("Remove this captured request?")) {
-      return;
-    }
-
     setDeletingLogID(logId);
 
     try {
@@ -573,18 +569,16 @@ export function useInspectorWorkspace({
 
       await reloadTraffic(selectedProject);
       setErrorMessage("");
+      return true;
     } catch (error) {
       setErrorMessage(toMessage(error));
+      return false;
     } finally {
       setDeletingLogID("");
     }
   }
 
   async function handleClearCapturedRequests() {
-    if (!window.confirm("Clear all captured requests for this project?")) {
-      return;
-    }
-
     setIsClearingLogs(true);
 
     try {
@@ -597,8 +591,10 @@ export function useInspectorWorkspace({
       updateQuery({ project: selectedProject, log: "" });
       await reloadTraffic(selectedProject);
       setErrorMessage("");
+      return true;
     } catch (error) {
       setErrorMessage(toMessage(error));
+      return false;
     } finally {
       setIsClearingLogs(false);
     }
