@@ -47,6 +47,8 @@ func NewRouter(cfg config.Config, logger *zap.Logger, store *db.Store, proxyServ
 		api.PUT("/projects/:slug", handler.updateProject)
 		api.DELETE("/projects/:slug", handler.deleteProject)
 		api.GET("/projects/:slug", handler.getProject)
+		api.GET("/settings", handler.getSettings)
+		api.PUT("/settings", handler.updateSettings)
 		api.GET("/logs", handler.listLogs)
 		api.DELETE("/logs", handler.clearLogs)
 		api.GET("/logs/:id", handler.getLog)
@@ -99,14 +101,6 @@ func (handler *Handler) devCORS() gin.HandlerFunc {
 }
 
 func (handler *Handler) isAllowedDevOrigin(origin string) bool {
-	if handler.config.FrontendDevURL != "" && origin == handler.config.FrontendDevURL {
-		return true
-	}
-
-	if handler.config.Environment != "development" {
-		return false
-	}
-
 	switch origin {
 	case "http://localhost:3000", "http://127.0.0.1:3000":
 		return true

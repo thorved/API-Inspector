@@ -5,11 +5,6 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
-    environment:
-      API_INSPECTOR_ENV: production
-      API_INSPECTOR_ADDR: :8080
-      API_INSPECTOR_DB_PATH: /app/data/api-inspector.db
-      API_INSPECTOR_UPSTREAM_TIMEOUT_SECONDS: 600
     volumes:
       - api-inspector-data:/app/data
 

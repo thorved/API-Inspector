@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -20,11 +22,15 @@ import (
 )
 
 func main() {
-	cfg := config.Load()
 	logger := logging.NewLogger()
 	defer func() {
 		_ = logger.Sync()
 	}()
+
+	cfg, err := config.Load()
+	if err != nil {
+		logger.Fatal("failed to load config", zap.Error(err))
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -39,9 +45,6 @@ func main() {
 	proxyService := proxy.NewService(cfg, logger, store, hub)
 
 	gin.SetMode(gin.ReleaseMode)
-	if cfg.Environment == "development" {
-		gin.SetMode(gin.DebugMode)
-	}
 
 	router := handlers.NewRouter(cfg, logger, store, proxyService, hub)
 
@@ -52,6 +55,7 @@ func main() {
 	}
 
 	go func() {
+		printStartupSummary(cfg)
 		logger.Info("API-Inspector listening",
 			zap.String("address", cfg.Address),
 			zap.String("database", cfg.DatabasePath),
@@ -70,4 +74,43 @@ func main() {
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		logger.Error("graceful shutdown failed", zap.Error(err))
 	}
+}
+
+func printStartupSummary(cfg config.Config) {
+	rootURL := fmt.Sprintf("http://localhost:%d", cfg.Port)
+	bodyPreviewLabel := "unlimited"
+	if cfg.BodyPreviewLimit > 0 {
+		bodyPreviewLabel = fmt.Sprintf("%d bytes", cfg.BodyPreviewLimit)
+	}
+
+	fmt.Printf(
+		"\nAPI-Inspector is ready\n"+
+			"  Web UI:          %s\n"+
+			"  API base:        %s/api\n"+
+			"  Proxy base:      %s/proxy/{project-slug}\n"+
+			"  Listen address:  %s\n"+
+			"  Settings file:   %s\n"+
+			"  Database file:   %s\n"+
+			"  Log page size:   %d\n"+
+			"  Body preview:    %s\n"+
+			"  Upstream timeout:%s\n\n",
+		rootURL,
+		rootURL,
+		rootURL,
+		cfg.Address,
+		displayPath(cfg.SettingsPath),
+		displayPath(cfg.DatabasePath),
+		cfg.LogPageSize,
+		bodyPreviewLabel,
+		" "+cfg.UpstreamTimeout.String(),
+	)
+}
+
+func displayPath(path string) string {
+	absolutePath, err := filepath.Abs(path)
+	if err != nil {
+		return path
+	}
+
+	return absolutePath
 }

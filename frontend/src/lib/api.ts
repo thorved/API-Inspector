@@ -1,22 +1,23 @@
 import type {
+  AppSettings,
   CreateProjectInput,
   LogDetail,
   LogListResponse,
   MutationResult,
   Project,
   ProjectsResponse,
+  SettingsSaveResponse,
   StatsResponse,
 } from "@/types/api";
 
 function apiBaseUrl() {
-  const configured = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
-  if (configured) {
-    return configured;
-  }
-
   if (typeof window !== "undefined") {
     const hostname = window.location.hostname.toLowerCase();
-    if (hostname === "localhost" || hostname === "127.0.0.1") {
+    const port = window.location.port;
+    if (
+      (hostname === "localhost" || hostname === "127.0.0.1") &&
+      port === "3000"
+    ) {
       return "http://localhost:8080";
     }
   }
@@ -131,4 +132,15 @@ export function clearLogs(project?: string) {
 
 export function getStats(project?: string) {
   return request<StatsResponse>(buildApiUrl("/api/stats", { project }));
+}
+
+export function getSettings() {
+  return request<AppSettings>(buildApiUrl("/api/settings"));
+}
+
+export function updateSettings(input: AppSettings) {
+  return request<SettingsSaveResponse>(buildApiUrl("/api/settings"), {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
 }

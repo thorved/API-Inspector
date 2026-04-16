@@ -103,3 +103,17 @@ export type TrafficEvent = {
   type: "traffic.created";
   item: LogSummary;
 };
+
+export type AppSettings = {
+  port: number;
+  databasePath: string;
+  bodyPreviewLimit: number;
+  logPageSize: number;
+  upstreamTimeoutSeconds: number;
+};
+
+export type SettingsSaveResponse = {
+  settings: AppSettings;
+  restartRequired: boolean;
+  message: string;
+};

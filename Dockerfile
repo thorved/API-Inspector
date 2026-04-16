@@ -29,7 +29,6 @@ RUN mkdir -p /app/data && chown -R api-inspector:api-inspector /app
 
 USER api-inspector
 
-ENV API_INSPECTOR_ADDR=:8080
 EXPOSE 8080
 
 CMD ["/app/api-inspector"]

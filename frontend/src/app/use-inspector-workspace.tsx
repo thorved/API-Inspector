@@ -537,6 +537,7 @@ export function useInspectorWorkspace({
     selectedLog,
     selectedProject,
     selectedProjectRecord,
+    setForm: handleProjectFormChange,
     setMethod,
     setSearch,
     setStatus,

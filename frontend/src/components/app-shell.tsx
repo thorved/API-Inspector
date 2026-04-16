@@ -33,7 +33,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isDashboard = pathname.startsWith("/dashboard");
   const isProjects = pathname.startsWith("/projects");
-  const isWorkspacePage = isDashboard || isProjects;
+  const isSettings = pathname.startsWith("/settings");
+  const isWorkspacePage = isDashboard || isProjects || isSettings;
 
   useEffect(() => {
     const savedTheme = window.localStorage.getItem(
@@ -85,6 +86,7 @@ function AppNavbar() {
   const { theme, setTheme } = useWorkspaceTheme();
   const isDashboard = pathname.startsWith("/dashboard");
   const isProjects = pathname.startsWith("/projects");
+  const isSettings = pathname.startsWith("/settings");
 
   return (
     <nav className={styles.nav} data-theme={theme}>
@@ -116,29 +118,64 @@ function AppNavbar() {
           </div>
         </div>
 
-        <div className={styles.themeSwitch}>
-          <button
+        <div className={styles.rightCluster}>
+          <Link
+            aria-label="Open settings"
             className={cx(
               styles.navButton,
-              styles.themeButton,
-              theme === "light" && styles.navButtonActive,
+              styles.iconLink,
+              isSettings && styles.navButtonActive,
             )}
-            onClick={() => setTheme("light")}
-            type="button"
+            href="/settings"
+            title="Settings"
           >
-            Light
-          </button>
-          <button
-            className={cx(
-              styles.navButton,
-              styles.themeButton,
-              theme === "dark" && styles.navButtonActive,
-            )}
-            onClick={() => setTheme("dark")}
-            type="button"
-          >
-            Dark
-          </button>
+            <svg
+              aria-hidden="true"
+              className={styles.icon}
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M10.325 4.317a1.724 1.724 0 0 1 3.35 0 1.724 1.724 0 0 0 2.573 1.066 1.724 1.724 0 0 1 2.902 1.675 1.724 1.724 0 0 0 .849 2.654 1.724 1.724 0 0 1 0 3.576 1.724 1.724 0 0 0-.85 2.654 1.724 1.724 0 0 1-2.901 1.675 1.724 1.724 0 0 0-2.573 1.066 1.724 1.724 0 0 1-3.35 0 1.724 1.724 0 0 0-2.573-1.066 1.724 1.724 0 0 1-2.902-1.675 1.724 1.724 0 0 0-.849-2.654 1.724 1.724 0 0 1 0-3.576 1.724 1.724 0 0 0 .85-2.654A1.724 1.724 0 0 1 7.752 5.38a1.724 1.724 0 0 0 2.573-1.066Z"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="1.6"
+              />
+              <path
+                d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="1.6"
+              />
+            </svg>
+          </Link>
+
+          <div className={styles.themeSwitch}>
+            <button
+              className={cx(
+                styles.navButton,
+                styles.themeButton,
+                theme === "light" && styles.navButtonActive,
+              )}
+              onClick={() => setTheme("light")}
+              type="button"
+            >
+              Light
+            </button>
+            <button
+              className={cx(
+                styles.navButton,
+                styles.themeButton,
+                theme === "dark" && styles.navButtonActive,
+              )}
+              onClick={() => setTheme("dark")}
+              type="button"
+            >
+              Dark
+            </button>
+          </div>
         </div>
       </div>
     </nav>
