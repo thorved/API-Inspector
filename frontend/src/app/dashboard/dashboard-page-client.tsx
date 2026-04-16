@@ -55,13 +55,18 @@ export function DashboardPageClient() {
     setMethod,
     setSearch,
     setStatus,
-    stats,
     status,
     watchEnabled,
     watchTimeoutSeconds,
   } = useInspectorWorkspace({ includeTraffic: true });
   const { theme } = useWorkspaceTheme();
   const [isWatchModalOpen, setIsWatchModalOpen] = useState(false);
+  const [activeRequestTab, setActiveRequestTab] = useState<
+    "overview" | "headers" | "query" | "body" | "files"
+  >("overview");
+  const [activeResponseTab, setActiveResponseTab] = useState<
+    "overview" | "headers" | "body" | "error"
+  >("overview");
 
   useEffect(() => {
     if (pendingWatchRequests.length > 0) {
@@ -74,6 +79,22 @@ export function DashboardPageClient() {
       setIsWatchModalOpen(false);
     }
   }, [pendingWatchRequests]);
+
+  useEffect(() => {
+    if (!detail) {
+      setActiveRequestTab("overview");
+      setActiveResponseTab("overview");
+      return;
+    }
+
+    if (!detail.request.uploadedFiles.length && activeRequestTab === "files") {
+      setActiveRequestTab("overview");
+    }
+
+    if (!detail.error && activeResponseTab === "error") {
+      setActiveResponseTab("overview");
+    }
+  }, [activeRequestTab, activeResponseTab, detail]);
 
   return (
     <DashboardFrame errorMessage={errorMessage} theme={theme}>
@@ -158,6 +179,22 @@ export function DashboardPageClient() {
                   ))}
                 </select>
               </div>
+              {selectedProjectRecord ? (
+                <div className={styles.sidebarWatchRow}>
+                  <div className={styles.sidebarWatchCard}>
+                    <WatchModeCard
+                      enabled={watchEnabled}
+                      isSaving={isSavingWatchState}
+                      onOpenQueue={() => setIsWatchModalOpen(true)}
+                      onToggle={(enabled) => void handleWatchToggle(enabled)}
+                      pendingCount={pendingWatchRequests.length}
+                      projectName={selectedProjectRecord.name}
+                      timeoutSeconds={watchTimeoutSeconds}
+                      variant="sidebar"
+                    />
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -268,79 +305,6 @@ export function DashboardPageClient() {
         </aside>
 
         <section className={styles.inspectorPane}>
-          <div className={styles.inspectorHead}>
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <div
-                  className={cx(
-                    styles.inspectorMuted,
-                    "text-[11px] uppercase tracking-[0.18em]",
-                  )}
-                >
-                  Request details
-                </div>
-                <div className="mt-1 flex flex-wrap items-center gap-3">
-                  <span
-                    className={cx(
-                      styles.inspectorStrong,
-                      "text-lg font-semibold",
-                    )}
-                  >
-                    {detail?.request.path ?? "Select a request"}
-                  </span>
-                  {detail ? (
-                    <span className={styles.methodPill}>
-                      {detail.request.method}
-                    </span>
-                  ) : null}
-                </div>
-                <div className={cx(styles.inspectorMuted, "mt-1 text-sm")}>
-                  {detail?.project.name ??
-                    selectedProjectRecord?.name ??
-                    "Choose a project"}
-                </div>
-              </div>
-              <div
-                className={cx(
-                  styles.inspectorSoft,
-                  "flex flex-wrap items-center gap-3 text-sm",
-                )}
-              >
-                <span>{stats.totalRequests} total</span>
-                <span>{stats.errorCount} errors</span>
-                <span>{Math.round(stats.averageLatencyMs)} ms avg</span>
-                {pendingWatchRequests.length ? (
-                  <span className={cx(styles.statusBadge, styles.statusError)}>
-                    {pendingWatchRequests.length} waiting
-                  </span>
-                ) : null}
-                {detail ? (
-                  <button
-                    className={styles.inspectorIconButton}
-                    disabled={deletingLogID === detail.id}
-                    onClick={() => void handleDeleteLog(detail.id)}
-                    type="button"
-                  >
-                    {deletingLogID === detail.id
-                      ? "Removing..."
-                      : "Remove request"}
-                  </button>
-                ) : null}
-              </div>
-            </div>
-            <div className={styles.watchModeRow}>
-              <WatchModeCard
-                enabled={watchEnabled}
-                isSaving={isSavingWatchState}
-                onOpenQueue={() => setIsWatchModalOpen(true)}
-                onToggle={(enabled) => void handleWatchToggle(enabled)}
-                pendingCount={pendingWatchRequests.length}
-                projectName={selectedProjectRecord?.name}
-                timeoutSeconds={watchTimeoutSeconds}
-              />
-            </div>
-          </div>
-
           <div
             className={cx(
               styles.inspectorPaneBody,
@@ -348,138 +312,353 @@ export function DashboardPageClient() {
             )}
           >
             {detail ? (
-              <div className="space-y-4">
-                <section className={styles.inspectorSection}>
-                  <div className="px-4 pt-4">
-                    <SectionLabel title="Request details & headers" />
-                  </div>
-                  <div className="grid gap-4 px-4 pb-4 pt-3 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-                    <div
-                      className={cx(
-                        styles.inspectorCardSurface,
-                        styles.inspectorPanel,
-                      )}
-                    >
-                      <KeyValueRows
-                        compact
-                        items={[
-                          {
-                            label: "Method",
-                            value: detail.request.method,
-                          },
-                          {
-                            label: "Status",
-                            value: detail.response.status
-                              ? `${detail.response.status}`
-                              : "Upstream error",
-                          },
-                          {
-                            label: "Project",
-                            value: detail.project.name,
-                          },
-                          {
-                            label: "URL",
-                            value: detail.request.url,
-                            mono: true,
-                          },
-                          {
-                            label: "Date",
-                            value: formatDateTime(detail.createdAt),
-                          },
-                          {
-                            label: "Time",
-                            value: `${detail.durationMs} ms`,
-                          },
-                          {
-                            label: "Client IP",
-                            value: detail.clientIp || "-",
-                          },
-                          {
-                            label: "User Agent",
-                            value: detail.userAgent || "-",
-                          },
-                        ]}
-                      />
-                    </div>
-                    <div
-                      className={cx(
-                        styles.inspectorCardSurface,
-                        styles.inspectorPanel,
-                      )}
-                    >
-                      <SectionLabel title="Request headers" />
-                      <div className="mt-3">
-                        <KeyValueRows
-                          compact
-                          emptyLabel="No request headers"
-                          items={toKeyValueRows(detail.request.headers)}
-                          mono
-                        />
+              <div className={styles.detailWorkspace}>
+                <div className={styles.detailSplit}>
+                  <section className={styles.detailPane}>
+                    <div className={styles.detailPaneShell}>
+                      <div className={styles.detailPaneIntro}>
+                        <div>
+                          <SectionLabel title="Request" />
+                          <div
+                            className={cx(
+                              styles.inspectorStrong,
+                              styles.detailPaneTitle,
+                            )}
+                          >
+                            {detail.request.method} {detail.request.path}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={styles.methodPill}>
+                            {detail.request.method}
+                          </span>
+                          <button
+                            className={styles.inspectorIconButton}
+                            disabled={deletingLogID === detail.id}
+                            onClick={() => void handleDeleteLog(detail.id)}
+                            type="button"
+                          >
+                            {deletingLogID === detail.id
+                              ? "Removing..."
+                              : "Remove"}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className={styles.detailTabBar}>
+                        <button
+                          className={cx(
+                            styles.tabButton,
+                            activeRequestTab === "overview" &&
+                              styles.tabButtonActive,
+                          )}
+                          onClick={() => setActiveRequestTab("overview")}
+                          type="button"
+                        >
+                          Overview
+                        </button>
+                        <button
+                          className={cx(
+                            styles.tabButton,
+                            activeRequestTab === "headers" &&
+                              styles.tabButtonActive,
+                          )}
+                          onClick={() => setActiveRequestTab("headers")}
+                          type="button"
+                        >
+                          Headers
+                        </button>
+                        <button
+                          className={cx(
+                            styles.tabButton,
+                            activeRequestTab === "query" &&
+                              styles.tabButtonActive,
+                          )}
+                          onClick={() => setActiveRequestTab("query")}
+                          type="button"
+                        >
+                          Params
+                        </button>
+                        <button
+                          className={cx(
+                            styles.tabButton,
+                            activeRequestTab === "body" &&
+                              styles.tabButtonActive,
+                          )}
+                          onClick={() => setActiveRequestTab("body")}
+                          type="button"
+                        >
+                          Body
+                        </button>
+                        {detail.request.uploadedFiles.length ? (
+                          <button
+                            className={cx(
+                              styles.tabButton,
+                              activeRequestTab === "files" &&
+                                styles.tabButtonActive,
+                            )}
+                            onClick={() => setActiveRequestTab("files")}
+                            type="button"
+                          >
+                            Files
+                          </button>
+                        ) : null}
+                      </div>
+
+                      <div className={styles.detailTabBody}>
+                        <div className={styles.detailTabContent}>
+                          {activeRequestTab === "overview" ? (
+                            <section className={styles.inspectorSection}>
+                              <div className="px-4 pt-4">
+                                <SectionLabel title="Request overview" />
+                              </div>
+                              <div className="px-4 pb-4 pt-3">
+                                <KeyValueRows
+                                  compact
+                                  items={[
+                                    {
+                                      label: "URL",
+                                      value: detail.request.url,
+                                      mono: true,
+                                    },
+                                    {
+                                      label: "Project",
+                                      value: detail.project.name,
+                                    },
+                                    {
+                                      label: "Captured",
+                                      value: formatDateTime(detail.createdAt),
+                                    },
+                                    {
+                                      label: "Duration",
+                                      value: `${detail.durationMs} ms`,
+                                    },
+                                    {
+                                      label: "Client IP",
+                                      value: detail.clientIp || "-",
+                                    },
+                                    {
+                                      label: "User Agent",
+                                      value: detail.userAgent || "-",
+                                    },
+                                  ]}
+                                />
+                              </div>
+                            </section>
+                          ) : null}
+
+                          {activeRequestTab === "headers" ? (
+                            <section className={styles.inspectorSection}>
+                              <div className="px-4 pt-4">
+                                <SectionLabel title="Request headers" />
+                              </div>
+                              <div className="px-4 pb-4 pt-3">
+                                <KeyValueRows
+                                  compact
+                                  emptyLabel="No request headers"
+                                  items={toKeyValueRows(detail.request.headers)}
+                                  mono
+                                />
+                              </div>
+                            </section>
+                          ) : null}
+
+                          {activeRequestTab === "query" ? (
+                            <section className={styles.inspectorSection}>
+                              <div className="px-4 pt-4">
+                                <SectionLabel title="Query strings" />
+                              </div>
+                              <div className="px-4 pb-4 pt-3">
+                                <KeyValueRows
+                                  compact
+                                  emptyLabel="None"
+                                  items={toKeyValueRows(detail.request.query)}
+                                  mono
+                                />
+                              </div>
+                            </section>
+                          ) : null}
+
+                          {activeRequestTab === "body" ? (
+                            <section className={styles.inspectorSection}>
+                              <InspectorBody
+                                body={detail.request.body}
+                                theme={theme}
+                                title="Request content"
+                              />
+                            </section>
+                          ) : null}
+
+                          {activeRequestTab === "files" &&
+                          detail.request.uploadedFiles.length ? (
+                            <section className={styles.inspectorSection}>
+                              <UploadedFilesPanel
+                                files={detail.request.uploadedFiles}
+                                logId={detail.id}
+                              />
+                            </section>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </section>
-
-                <div className="grid gap-4 xl:grid-cols-2">
-                  <section className={styles.inspectorSection}>
-                    <div className="px-4 pt-4">
-                      <SectionLabel title="Query strings" />
-                    </div>
-                    <div className="px-4 pb-4 pt-3">
-                      <KeyValueRows
-                        compact
-                        emptyLabel="None"
-                        items={toKeyValueRows(detail.request.query)}
-                        mono
-                      />
-                    </div>
                   </section>
 
-                  <section className={styles.inspectorSection}>
-                    <div className="px-4 pt-4">
-                      <SectionLabel title="Response headers" />
-                    </div>
-                    <div className="px-4 pb-4 pt-3">
-                      <KeyValueRows
-                        compact
-                        emptyLabel="No response headers"
-                        items={toKeyValueRows(detail.response.headers)}
-                        mono
-                      />
+                  <section className={styles.detailPane}>
+                    <div className={styles.detailPaneShell}>
+                      <div className={styles.detailPaneIntro}>
+                        <div>
+                          <SectionLabel title="Response" />
+                          <div
+                            className={cx(
+                              styles.inspectorStrong,
+                              styles.detailPaneTitle,
+                            )}
+                          >
+                            {detail.response.status
+                              ? `${detail.response.status} response`
+                              : "Upstream error"}
+                          </div>
+                        </div>
+                        <StatusBadge
+                          hasError={Boolean(detail.error)}
+                          status={detail.response.status}
+                        />
+                      </div>
+
+                      <div className={styles.detailTabBar}>
+                        <button
+                          className={cx(
+                            styles.tabButton,
+                            activeResponseTab === "overview" &&
+                              styles.tabButtonActive,
+                          )}
+                          onClick={() => setActiveResponseTab("overview")}
+                          type="button"
+                        >
+                          Overview
+                        </button>
+                        <button
+                          className={cx(
+                            styles.tabButton,
+                            activeResponseTab === "headers" &&
+                              styles.tabButtonActive,
+                          )}
+                          onClick={() => setActiveResponseTab("headers")}
+                          type="button"
+                        >
+                          Headers
+                        </button>
+                        <button
+                          className={cx(
+                            styles.tabButton,
+                            activeResponseTab === "body" &&
+                              styles.tabButtonActive,
+                          )}
+                          onClick={() => setActiveResponseTab("body")}
+                          type="button"
+                        >
+                          Body
+                        </button>
+                        {detail.error ? (
+                          <button
+                            className={cx(
+                              styles.tabButton,
+                              activeResponseTab === "error" &&
+                                styles.tabButtonActive,
+                            )}
+                            onClick={() => setActiveResponseTab("error")}
+                            type="button"
+                          >
+                            Error
+                          </button>
+                        ) : null}
+                      </div>
+
+                      <div className={styles.detailTabBody}>
+                        <div className={styles.detailTabContent}>
+                          {activeResponseTab === "overview" ? (
+                            <section className={styles.inspectorSection}>
+                              <div className="px-4 pt-4">
+                                <SectionLabel title="Response overview" />
+                              </div>
+                              <div className="px-4 pb-4 pt-3">
+                                <KeyValueRows
+                                  compact
+                                  items={[
+                                    {
+                                      label: "Status",
+                                      value: detail.response.status
+                                        ? `${detail.response.status}`
+                                        : "Upstream error",
+                                    },
+                                    {
+                                      label: "Result",
+                                      value: detail.error
+                                        ? "Failed before upstream response"
+                                        : "Delivered from upstream",
+                                    },
+                                    {
+                                      label: "Captured",
+                                      value: formatDateTime(detail.createdAt),
+                                    },
+                                    {
+                                      label: "Duration",
+                                      value: `${detail.durationMs} ms`,
+                                    },
+                                    {
+                                      label: "Content type",
+                                      value:
+                                        detail.response.body.contentType ||
+                                        "unknown",
+                                    },
+                                    {
+                                      label: "Payload size",
+                                      value: `${detail.response.body.size} bytes`,
+                                    },
+                                  ]}
+                                />
+                              </div>
+                            </section>
+                          ) : null}
+
+                          {activeResponseTab === "headers" ? (
+                            <section className={styles.inspectorSection}>
+                              <div className="px-4 pt-4">
+                                <SectionLabel title="Response headers" />
+                              </div>
+                              <div className="px-4 pb-4 pt-3">
+                                <KeyValueRows
+                                  compact
+                                  emptyLabel="No response headers"
+                                  items={toKeyValueRows(
+                                    detail.response.headers,
+                                  )}
+                                  mono
+                                />
+                              </div>
+                            </section>
+                          ) : null}
+
+                          {activeResponseTab === "body" ? (
+                            <section className={styles.inspectorSection}>
+                              <InspectorBody
+                                body={detail.response.body}
+                                theme={theme}
+                                title="Response body"
+                              />
+                            </section>
+                          ) : null}
+
+                          {activeResponseTab === "error" && detail.error ? (
+                            <div className={styles.errorBox}>
+                              {detail.error}
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
                     </div>
                   </section>
                 </div>
-
-                {detail.request.uploadedFiles.length ? (
-                  <section className={styles.inspectorSection}>
-                    <UploadedFilesPanel
-                      files={detail.request.uploadedFiles}
-                      logId={detail.id}
-                    />
-                  </section>
-                ) : null}
-
-                <div className="grid gap-4 xl:grid-cols-2">
-                  <section className={styles.inspectorSection}>
-                    <InspectorBody
-                      body={detail.request.body}
-                      theme={theme}
-                      title="Request content"
-                    />
-                  </section>
-
-                  <section className={styles.inspectorSection}>
-                    <InspectorBody
-                      body={detail.response.body}
-                      theme={theme}
-                      title="Response body"
-                    />
-                  </section>
-                </div>
-
-                {detail.error ? (
-                  <div className={styles.errorBox}>{detail.error}</div>
-                ) : null}
               </div>
             ) : (
               <div className={styles.inspectorEmpty}>

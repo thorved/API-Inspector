@@ -130,6 +130,7 @@ export function WatchModeCard({
   timeoutSeconds,
   onOpenQueue,
   onToggle,
+  variant = "default",
 }: {
   enabled: boolean;
   isSaving: boolean;
@@ -138,13 +139,19 @@ export function WatchModeCard({
   timeoutSeconds: number;
   onOpenQueue: () => void;
   onToggle: (enabled: boolean) => void;
+  variant?: "default" | "sidebar";
 }) {
   return (
-    <div className={styles.watchModeCard}>
+    <div
+      className={cx(
+        styles.watchModeCard,
+        variant === "sidebar" && styles.watchModeCardSidebar,
+      )}
+    >
       <div className={styles.watchModeSummary}>
-        <div className="min-w-0">
+        <div className={styles.watchModeInfo}>
           <div className={cx(styles.inspectorStrong, styles.watchModeTitle)}>
-            Watch mode
+            Watch
           </div>
           {projectName ? (
             <div className={cx(styles.inspectorMuted, styles.watchModeProject)}>
@@ -160,29 +167,31 @@ export function WatchModeCard({
         >
           {enabled ? `${timeoutSeconds}s review` : "Off"}
         </span>
-        <button
-          aria-pressed={enabled}
-          className={cx(
-            styles.watchToggle,
-            enabled && styles.watchToggleEnabled,
-            isSaving && styles.watchToggleBusy,
-          )}
-          disabled={isSaving}
-          onClick={() => onToggle(!enabled)}
-          type="button"
-        >
-          <span className={styles.watchToggleThumb} />
-          <span className="sr-only">
-            {enabled ? "Disable watch mode" : "Enable watch mode"}
-          </span>
-        </button>
-        <button
-          className={cx(styles.secondaryButton, styles.watchQueueButton)}
-          onClick={onOpenQueue}
-          type="button"
-        >
-          Queue {pendingCount}
-        </button>
+        <div className={styles.watchModeControls}>
+          <button
+            aria-pressed={enabled}
+            className={cx(
+              styles.watchToggle,
+              enabled && styles.watchToggleEnabled,
+              isSaving && styles.watchToggleBusy,
+            )}
+            disabled={isSaving}
+            onClick={() => onToggle(!enabled)}
+            type="button"
+          >
+            <span className={styles.watchToggleThumb} />
+            <span className="sr-only">
+              {enabled ? "Disable watch mode" : "Enable watch mode"}
+            </span>
+          </button>
+          <button
+            className={cx(styles.secondaryButton, styles.watchQueueButton)}
+            onClick={onOpenQueue}
+            type="button"
+          >
+            Queue {pendingCount}
+          </button>
+        </div>
       </div>
     </div>
   );
