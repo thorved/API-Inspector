@@ -85,6 +85,7 @@ This builds the frontend and backend together in the container image and persist
 
 - All captured headers are stored and returned exactly as received, including `Authorization`, `Cookie`, `Set-Cookie`, API keys, and token/password-style names.
 - Text payloads are stored in full by default. Set `API_INSPECTOR_BODY_PREVIEW_LIMIT` to a positive byte limit if you want truncation instead.
+- Proxied upstream requests default to a 10 minute timeout. Set `API_INSPECTOR_UPSTREAM_TIMEOUT_SECONDS` to override it for a specific environment.
 - Binary payloads are detected and omitted from inline previews.
 - The MVP currently has no user auth, retries, workspaces, or replay support.
 - During development, the Go app serves APIs while Next serves the UI separately for fast hot reload.

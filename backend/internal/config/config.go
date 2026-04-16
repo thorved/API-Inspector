@@ -26,7 +26,7 @@ func Load() Config {
 		LogPageSize:      envInt("API_INSPECTOR_LOG_PAGE_SIZE", 50),
 		Environment:      strings.ToLower(envOrDefault("API_INSPECTOR_ENV", "development")),
 		FrontendDevURL:   strings.TrimSpace(os.Getenv("API_INSPECTOR_FRONTEND_DEV_URL")),
-		UpstreamTimeout:  time.Duration(envInt("API_INSPECTOR_UPSTREAM_TIMEOUT_SECONDS", 30)) * time.Second,
+		UpstreamTimeout:  time.Duration(envInt("API_INSPECTOR_UPSTREAM_TIMEOUT_SECONDS", 600)) * time.Second,
 	}
 }
 
