@@ -8,6 +8,7 @@ import type {
   ProjectsResponse,
   SettingsSaveResponse,
   StatsResponse,
+  WatchState,
 } from "@/types/api";
 
 function apiBaseUrl() {
@@ -143,4 +144,25 @@ export function updateSettings(input: AppSettings) {
     method: "PUT",
     body: JSON.stringify(input),
   });
+}
+
+export function getWatchState(project: string) {
+  return request<WatchState>(buildApiUrl("/api/watch", { project }));
+}
+
+export function updateWatchState(projectSlug: string, enabled: boolean) {
+  return request<WatchState>(buildApiUrl("/api/watch"), {
+    method: "PUT",
+    body: JSON.stringify({ projectSlug, enabled }),
+  });
+}
+
+export function resolveWatchRequest(id: string, action: "approve" | "deny") {
+  return request<{ resolved: boolean; action: string }>(
+    buildApiUrl(`/api/watch/requests/${id}/decision`),
+    {
+      method: "POST",
+      body: JSON.stringify({ action }),
+    },
+  );
 }

@@ -104,6 +104,50 @@ export type TrafficEvent = {
   item: LogSummary;
 };
 
+export type PendingWatchRequest = {
+  id: string;
+  projectSlug: string;
+  method: string;
+  path: string;
+  fullUrl: string;
+  query: Record<string, string[]>;
+  headers: Record<string, string[]>;
+  body: BodyPreview;
+  clientIp: string;
+  userAgent: string;
+  createdAt: string;
+  expiresAt: string;
+};
+
+export type WatchState = {
+  projectSlug: string;
+  enabled: boolean;
+  timeoutSeconds: number;
+  pending: PendingWatchRequest[];
+};
+
+export type WatchRequestedEvent = {
+  type: "watch.requested";
+  request: PendingWatchRequest;
+};
+
+export type WatchResolvedEvent = {
+  type: "watch.resolved";
+  projectSlug: string;
+  requestId: string;
+  action: string;
+};
+
+export type WatchStateChangedEvent = {
+  type: "watch.state.changed";
+  state: WatchState;
+};
+
+export type WatchEvent =
+  | WatchRequestedEvent
+  | WatchResolvedEvent
+  | WatchStateChangedEvent;
+
 export type AppSettings = {
   port: number;
   databasePath: string;

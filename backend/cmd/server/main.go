@@ -19,6 +19,7 @@ import (
 	"api-inspector/backend/internal/logging"
 	"api-inspector/backend/internal/proxy"
 	"api-inspector/backend/internal/realtime"
+	"api-inspector/backend/internal/watch"
 )
 
 func main() {
@@ -42,11 +43,12 @@ func main() {
 	defer store.Close()
 
 	hub := realtime.NewHub()
+	watchManager := watch.NewManager(30*time.Second, hub)
 	proxyService := proxy.NewService(cfg, logger, store, hub)
 
 	gin.SetMode(gin.ReleaseMode)
 
-	router := handlers.NewRouter(cfg, logger, store, proxyService, hub)
+	router := handlers.NewRouter(cfg, logger, store, proxyService, hub, watchManager)
 
 	server := &http.Server{
 		Addr:              cfg.Address,

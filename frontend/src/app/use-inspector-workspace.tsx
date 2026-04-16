@@ -17,17 +17,22 @@ import {
   deleteProject,
   getLog,
   getStats,
+  getWatchState,
   listLogs,
   listProjects,
+  resolveWatchRequest,
   updateProject,
+  updateWatchState,
 } from "@/lib/api";
 import type {
   CreateProjectInput,
   LogDetail,
   LogSummary,
+  PendingWatchRequest,
   Project,
   StatsResponse,
   TrafficEvent,
+  WatchEvent,
 } from "@/types/api";
 
 export type WorkspaceTheme = "light" | "dark";
@@ -96,9 +101,16 @@ export function useInspectorWorkspace({
   const [isLoading, setIsLoading] = useState(includeTraffic);
   const [isSavingProject, setIsSavingProject] = useState(false);
   const [isClearingLogs, setIsClearingLogs] = useState(false);
+  const [isSavingWatchState, setIsSavingWatchState] = useState(false);
+  const [isResolvingWatchRequest, setIsResolvingWatchRequest] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [projectFormErrorMessage, setProjectFormErrorMessage] = useState("");
   const [_liveFeed, setLiveFeed] = useState<LogSummary[]>([]);
+  const [watchEnabled, setWatchEnabled] = useState(false);
+  const [watchTimeoutSeconds, setWatchTimeoutSeconds] = useState(30);
+  const [pendingWatchRequests, setPendingWatchRequests] = useState<
+    PendingWatchRequest[]
+  >([]);
   const [form, setForm] = useState<CreateProjectInput>({
     name: "",
     slug: "",
@@ -166,12 +178,16 @@ export function useInspectorWorkspace({
   useEffect(() => {
     if (!includeTraffic) {
       setIsLoading(false);
+      setWatchEnabled(false);
+      setPendingWatchRequests([]);
       return;
     }
 
     if (!selectedProject) {
       setLogs([]);
       setStats(emptyStats);
+      setWatchEnabled(false);
+      setPendingWatchRequests([]);
       setIsLoading(false);
       return;
     }
@@ -216,6 +232,45 @@ export function useInspectorWorkspace({
       cancelled = true;
     };
   }, [deferredSearch, includeTraffic, method, selectedProject, status]);
+
+  useEffect(() => {
+    if (!includeTraffic) {
+      return;
+    }
+
+    if (!selectedProject) {
+      setWatchEnabled(false);
+      setPendingWatchRequests([]);
+      setWatchTimeoutSeconds(30);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadWatchState() {
+      try {
+        const payload = await getWatchState(selectedProject);
+        if (cancelled) {
+          return;
+        }
+
+        setWatchEnabled(payload.enabled);
+        setWatchTimeoutSeconds(payload.timeoutSeconds);
+        setPendingWatchRequests(payload.pending);
+        setErrorMessage("");
+      } catch (error) {
+        if (!cancelled) {
+          setErrorMessage(toMessage(error));
+        }
+      }
+    }
+
+    void loadWatchState();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [includeTraffic, selectedProject]);
 
   useEffect(() => {
     if (!includeTraffic) {
@@ -293,13 +348,59 @@ export function useInspectorWorkspace({
         });
     };
 
+    const handleWatchEvent = (event: MessageEvent) => {
+      const payload = JSON.parse(event.data) as WatchEvent;
+
+      if (
+        payload.type === "watch.requested" &&
+        payload.request.projectSlug !== selectedProject
+      ) {
+        return;
+      }
+
+      if (
+        payload.type === "watch.resolved" &&
+        payload.projectSlug !== selectedProject
+      ) {
+        return;
+      }
+
+      if (
+        payload.type === "watch.state.changed" &&
+        payload.state.projectSlug !== selectedProject
+      ) {
+        return;
+      }
+
+      if (!selectedProject) {
+        return;
+      }
+
+      void getWatchState(selectedProject)
+        .then((watchState) => {
+          setWatchEnabled(watchState.enabled);
+          setWatchTimeoutSeconds(watchState.timeoutSeconds);
+          setPendingWatchRequests(watchState.pending);
+          setErrorMessage("");
+        })
+        .catch((error) => {
+          setErrorMessage(toMessage(error));
+        });
+    };
+
     source.addEventListener("traffic.created", handleTraffic);
+    source.addEventListener("watch.requested", handleWatchEvent);
+    source.addEventListener("watch.resolved", handleWatchEvent);
+    source.addEventListener("watch.state.changed", handleWatchEvent);
     source.onerror = () => {
       source.close();
     };
 
     return () => {
       source.removeEventListener("traffic.created", handleTraffic);
+      source.removeEventListener("watch.requested", handleWatchEvent);
+      source.removeEventListener("watch.resolved", handleWatchEvent);
+      source.removeEventListener("watch.state.changed", handleWatchEvent);
       source.close();
     };
   }, [deferredSearch, includeTraffic, method, selectedProject, status]);
@@ -332,6 +433,20 @@ export function useInspectorWorkspace({
     setLogs(logsPayload.items);
     setNextCursor(logsPayload.nextCursor ?? "");
     setStats(statsPayload);
+  }
+
+  async function reloadWatch(projectSlug: string) {
+    if (!projectSlug) {
+      setWatchEnabled(false);
+      setPendingWatchRequests([]);
+      setWatchTimeoutSeconds(30);
+      return;
+    }
+
+    const payload = await getWatchState(projectSlug);
+    setWatchEnabled(payload.enabled);
+    setWatchTimeoutSeconds(payload.timeoutSeconds);
+    setPendingWatchRequests(payload.pending);
   }
 
   async function handleSubmitProject(event: FormEvent<HTMLFormElement>) {
@@ -507,6 +622,43 @@ export function useInspectorWorkspace({
     }
   }
 
+  async function handleWatchToggle(enabled: boolean) {
+    if (!selectedProject) {
+      return;
+    }
+
+    setIsSavingWatchState(true);
+
+    try {
+      const payload = await updateWatchState(selectedProject, enabled);
+      setWatchEnabled(payload.enabled);
+      setWatchTimeoutSeconds(payload.timeoutSeconds);
+      setPendingWatchRequests(payload.pending);
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage(toMessage(error));
+    } finally {
+      setIsSavingWatchState(false);
+    }
+  }
+
+  async function handleResolveWatchRequest(
+    id: string,
+    action: "approve" | "deny",
+  ) {
+    setIsResolvingWatchRequest(id);
+
+    try {
+      await resolveWatchRequest(id, action);
+      await reloadWatch(selectedProject);
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage(toMessage(error));
+    } finally {
+      setIsResolvingWatchRequest("");
+    }
+  }
+
   return {
     deferredSearch,
     deletingLogID,
@@ -523,14 +675,19 @@ export function useInspectorWorkspace({
     handleProjectFormChange,
     handleLoadMore,
     handleProjectChange,
+    handleResolveWatchRequest,
     handleSelectLog,
     handleSubmitProject,
+    handleWatchToggle,
     isClearingLogs,
     isLoading,
+    isResolvingWatchRequest,
+    isSavingWatchState,
     isSavingProject,
     logs,
     method,
     nextCursor,
+    pendingWatchRequests,
     projectFormErrorMessage,
     projects,
     search,
@@ -543,6 +700,8 @@ export function useInspectorWorkspace({
     setStatus,
     stats,
     status,
+    watchEnabled,
+    watchTimeoutSeconds,
   };
 }
 

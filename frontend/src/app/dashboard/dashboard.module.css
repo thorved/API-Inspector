@@ -375,6 +375,12 @@
   padding: 0.85rem 0.95rem;
 }
 
+.watchModeRow {
+  margin-top: 0.6rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
 .inspectorSidebarBottom {
   border-top: 1px solid var(--inspector-border);
   border-bottom: 0;
@@ -412,6 +418,91 @@
 .inspectorPanel {
   min-width: 0;
   padding: 1rem;
+}
+
+.watchModeCard {
+  display: inline-flex;
+  border: 1px solid var(--inspector-border);
+  border-radius: 0.9rem;
+  background: var(--inspector-panel-strong);
+  padding: 0.55rem 0.7rem;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.watchModeSummary {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.55rem;
+  flex-wrap: nowrap;
+}
+
+.watchModeTitle {
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.watchModeProject {
+  margin-top: 0.1rem;
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.68rem;
+  line-height: 1.1;
+}
+
+.watchToggle {
+  position: relative;
+  display: inline-flex;
+  height: 2rem;
+  width: 3.5rem;
+  flex: none;
+  align-items: center;
+  border: 1px solid var(--inspector-border);
+  border-radius: 999px;
+  background: var(--inspector-panel);
+  padding: 0.2rem;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    opacity 140ms ease;
+}
+
+.watchToggleEnabled {
+  border-color: rgba(37, 99, 235, 0.4);
+  background: rgba(59, 130, 246, 0.22);
+}
+
+.watchToggleBusy {
+  opacity: 0.72;
+}
+
+.watchToggleThumb {
+  height: 1.45rem;
+  width: 1.45rem;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.16);
+  transition: transform 140ms ease;
+}
+
+.watchToggleEnabled .watchToggleThumb {
+  transform: translateX(1.45rem);
+}
+
+.watchStatusIdle {
+  background: rgba(148, 163, 184, 0.16);
+  color: var(--inspector-text-soft);
+}
+
+.watchQueueButton {
+  padding: 0.38rem 0.68rem;
+  font-size: 0.78rem;
+  border-radius: 999px;
 }
 
 .inspectorEmpty {
@@ -529,6 +620,46 @@
   box-shadow: 0 24px 64px rgba(15, 23, 42, 0.24);
 }
 
+.watchModal {
+  max-height: min(88vh, 980px);
+  overflow: hidden;
+}
+
+.watchQueueList {
+  margin-top: 1rem;
+  max-height: calc(88vh - 8rem);
+  overflow-y: auto;
+  display: grid;
+  gap: 1rem;
+  padding-right: 0.25rem;
+}
+
+.watchQueueCard {
+  border: 1px solid var(--inspector-border);
+  border-radius: 1rem;
+  background: var(--inspector-panel-strong);
+  padding: 1rem;
+}
+
+.watchQueueMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.watchModalActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.watchApproveButton {
+  border-color: rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.14);
+  color: #166534;
+}
+
 .inspectorCode {
   margin-top: 0.8rem;
   overflow-x: auto;
@@ -597,6 +728,20 @@
   color: #fda4af;
 }
 
+.page[data-theme="dark"] .watchApproveButton {
+  border-color: rgba(34, 197, 94, 0.25);
+  background: rgba(34, 197, 94, 0.14);
+  color: #86efac;
+}
+
+.page[data-theme="dark"] .watchToggle {
+  background: #161617;
+}
+
+.page[data-theme="dark"] .watchToggleThumb {
+  background: #f4f4f5;
+}
+
 .page[data-theme="dark"] .methodPill {
   background: rgba(59, 130, 246, 0.16);
   color: #bfdbfe;
@@ -623,6 +768,18 @@
 }
 
 @media (max-width: 640px) {
+  .watchModeRow {
+    justify-content: stretch;
+  }
+
+  .watchModeCard {
+    width: 100%;
+  }
+
+  .watchModeSummary {
+    flex-wrap: wrap;
+  }
+
   .inspectorKvRow,
   .inspectorKvRowCompact {
     grid-template-columns: 1fr;

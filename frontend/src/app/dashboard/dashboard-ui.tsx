@@ -6,7 +6,7 @@ import { lightTheme as jsonLightTheme } from "@uiw/react-json-view/light";
 import { type ReactNode, useState } from "react";
 
 import { buildApiUrl } from "@/lib/api";
-import type { LogDetail, UploadedFile } from "@/types/api";
+import type { LogDetail, PendingWatchRequest, UploadedFile } from "@/types/api";
 
 import type { WorkspaceTheme } from "../use-inspector-workspace";
 import styles from "./dashboard.module.css";
@@ -117,6 +117,260 @@ export function UploadedFilesPanel({
             ) : null}
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+export function WatchModeCard({
+  enabled,
+  isSaving,
+  pendingCount,
+  projectName,
+  timeoutSeconds,
+  onOpenQueue,
+  onToggle,
+}: {
+  enabled: boolean;
+  isSaving: boolean;
+  pendingCount: number;
+  projectName?: string | null;
+  timeoutSeconds: number;
+  onOpenQueue: () => void;
+  onToggle: (enabled: boolean) => void;
+}) {
+  return (
+    <div className={styles.watchModeCard}>
+      <div className={styles.watchModeSummary}>
+        <div className="min-w-0">
+          <div className={cx(styles.inspectorStrong, styles.watchModeTitle)}>
+            Watch mode
+          </div>
+          {projectName ? (
+            <div className={cx(styles.inspectorMuted, styles.watchModeProject)}>
+              {projectName}
+            </div>
+          ) : null}
+        </div>
+        <span
+          className={cx(
+            styles.statusBadge,
+            enabled ? styles.statusSuccess : styles.watchStatusIdle,
+          )}
+        >
+          {enabled ? `${timeoutSeconds}s review` : "Off"}
+        </span>
+        <button
+          aria-pressed={enabled}
+          className={cx(
+            styles.watchToggle,
+            enabled && styles.watchToggleEnabled,
+            isSaving && styles.watchToggleBusy,
+          )}
+          disabled={isSaving}
+          onClick={() => onToggle(!enabled)}
+          type="button"
+        >
+          <span className={styles.watchToggleThumb} />
+          <span className="sr-only">
+            {enabled ? "Disable watch mode" : "Enable watch mode"}
+          </span>
+        </button>
+        <button
+          className={cx(styles.secondaryButton, styles.watchQueueButton)}
+          onClick={onOpenQueue}
+          type="button"
+        >
+          Queue {pendingCount}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function WatchRequestsModal({
+  pending,
+  isResolvingRequestId,
+  onApprove,
+  onClose,
+  onDeny,
+  theme,
+}: {
+  pending: PendingWatchRequest[];
+  isResolvingRequestId: string;
+  onApprove: (id: string) => void;
+  onClose: () => void;
+  onDeny: (id: string) => void;
+  theme: WorkspaceTheme;
+}) {
+  if (!pending.length) {
+    return null;
+  }
+
+  return (
+    <div className={styles.inspectorModalBackdrop}>
+      <button
+        aria-label="Close watch mode queue"
+        className={styles.inspectorModalDismiss}
+        onClick={onClose}
+        type="button"
+      />
+      <div
+        aria-labelledby="watch-mode-modal-title"
+        aria-modal="true"
+        className={cx(styles.inspectorModal, styles.watchModal)}
+        role="dialog"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div
+              className={cx(
+                styles.inspectorMuted,
+                "text-[11px] uppercase tracking-[0.18em]",
+              )}
+            >
+              Approval queue
+            </div>
+            <div
+              className={cx(
+                styles.inspectorStrong,
+                "mt-1 text-sm font-semibold",
+              )}
+              id="watch-mode-modal-title"
+            >
+              {pending.length} pending request{pending.length === 1 ? "" : "s"}
+            </div>
+          </div>
+          <button
+            className={styles.inspectorIconButton}
+            onClick={onClose}
+            type="button"
+          >
+            Close
+          </button>
+        </div>
+
+        <div className={styles.watchQueueList}>
+          {pending.map((request, index) => {
+            const isResolving = isResolvingRequestId === request.id;
+
+            return (
+              <section className={styles.watchQueueCard} key={request.id}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className={styles.watchQueueMeta}>
+                      <span className={styles.methodPill}>
+                        {request.method}
+                      </span>
+                      <span
+                        className={cx(
+                          styles.inspectorStrong,
+                          "text-sm font-semibold",
+                        )}
+                      >
+                        {request.path}
+                      </span>
+                    </div>
+                    <div className={cx(styles.inspectorMuted, "mt-2 text-xs")}>
+                      Queue #{index + 1} · received{" "}
+                      {formatDateTime(request.createdAt)}
+                    </div>
+                  </div>
+                  <div className={styles.watchModalActions}>
+                    <button
+                      className={styles.secondaryButton}
+                      disabled={isResolving}
+                      onClick={() => onDeny(request.id)}
+                      type="button"
+                    >
+                      {isResolving ? "Working..." : "Block"}
+                    </button>
+                    <button
+                      className={cx(
+                        styles.secondaryButton,
+                        styles.watchApproveButton,
+                      )}
+                      disabled={isResolving}
+                      onClick={() => onApprove(request.id)}
+                      type="button"
+                    >
+                      {isResolving ? "Working..." : "Approve"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+                  <div
+                    className={cx(
+                      styles.inspectorCardSurface,
+                      styles.inspectorPanel,
+                    )}
+                  >
+                    <KeyValueRows
+                      compact
+                      items={[
+                        {
+                          label: "Upstream URL",
+                          value: request.fullUrl,
+                          mono: true,
+                        },
+                        { label: "Client IP", value: request.clientIp || "-" },
+                        {
+                          label: "User Agent",
+                          value: request.userAgent || "-",
+                        },
+                        {
+                          label: "Expires",
+                          value: formatDateTime(request.expiresAt),
+                        },
+                      ]}
+                    />
+                  </div>
+                  <div
+                    className={cx(
+                      styles.inspectorCardSurface,
+                      styles.inspectorPanel,
+                    )}
+                  >
+                    <SectionLabel title="Headers" />
+                    <div className="mt-3">
+                      <KeyValueRows
+                        compact
+                        emptyLabel="No request headers"
+                        items={toKeyValueRows(request.headers)}
+                        mono
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                  <section className={styles.inspectorSection}>
+                    <div className="px-4 pt-4">
+                      <SectionLabel title="Query strings" />
+                    </div>
+                    <div className="px-4 pb-4 pt-3">
+                      <KeyValueRows
+                        compact
+                        emptyLabel="None"
+                        items={toKeyValueRows(request.query)}
+                        mono
+                      />
+                    </div>
+                  </section>
+
+                  <section className={styles.inspectorSection}>
+                    <InspectorBody
+                      body={request.body}
+                      theme={theme}
+                      title="Request content"
+                    />
+                  </section>
+                </div>
+              </section>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

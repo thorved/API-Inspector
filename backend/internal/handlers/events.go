@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -37,7 +38,14 @@ func (handler *Handler) streamTraffic(c *gin.Context) {
 			if !ok {
 				return
 			}
-			_, _ = fmt.Fprintf(c.Writer, "event: traffic.created\ndata: %s\n\n", message)
+			eventName := "message"
+			var envelope struct {
+				Type string `json:"type"`
+			}
+			if err := json.Unmarshal(message, &envelope); err == nil && envelope.Type != "" {
+				eventName = envelope.Type
+			}
+			_, _ = fmt.Fprintf(c.Writer, "event: %s\ndata: %s\n\n", eventName, message)
 			flusher.Flush()
 		case <-keepAlive.C:
 			_, _ = fmt.Fprint(c.Writer, ": ping\n\n")

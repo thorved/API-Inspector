@@ -62,13 +62,17 @@ func NewService(cfg config.Config, logger *zap.Logger, store *db.Store, hub *rea
 }
 
 func (service *Service) Forward(ctx context.Context, project models.Project, request *http.Request, wildcardPath string) (Result, error) {
-	startedAt := time.Now()
-
 	requestBody, err := io.ReadAll(request.Body)
 	if err != nil {
 		return Result{}, fmt.Errorf("read request body: %w", err)
 	}
 	_ = request.Body.Close()
+
+	return service.ForwardBuffered(ctx, project, request, wildcardPath, requestBody)
+}
+
+func (service *Service) ForwardBuffered(ctx context.Context, project models.Project, request *http.Request, wildcardPath string, requestBody []byte) (Result, error) {
+	startedAt := time.Now()
 
 	targetURL, err := buildTargetURL(project.BaseURL, wildcardPath, request.URL.Query())
 	if err != nil {
@@ -164,6 +168,31 @@ func (service *Service) Forward(ctx context.Context, project models.Project, req
 		ResponseHeader: response.Header.Clone(),
 		ResponseBody:   responseBody,
 		LogRecord:      record,
+	}, nil
+}
+
+func (service *Service) BuildPendingWatchRequest(project models.Project, request *http.Request, wildcardPath string, requestBody []byte, expiresAt time.Time) (models.PendingWatchRequest, error) {
+	targetURL, err := buildTargetURL(project.BaseURL, wildcardPath, request.URL.Query())
+	if err != nil {
+		return models.PendingWatchRequest{}, err
+	}
+
+	createdAt := time.Now().UTC()
+	requestPreview := captureBodyPreview(requestBody, request.Header.Get("Content-Type"), service.bodyPreviewLimit)
+
+	return models.PendingWatchRequest{
+		ID:          ulid.Make().String(),
+		ProjectSlug: project.Slug,
+		Method:      request.Method,
+		Path:        normalizeWildcardPath(wildcardPath),
+		FullURL:     targetURL,
+		Query:       cloneStringSliceMap(map[string][]string(request.URL.Query())),
+		Headers:     cloneStringSliceMap(map[string][]string(request.Header.Clone())),
+		Body:        requestPreview,
+		ClientIP:    request.RemoteAddr,
+		UserAgent:   request.UserAgent(),
+		CreatedAt:   createdAt,
+		ExpiresAt:   expiresAt.UTC(),
 	}, nil
 }
 
@@ -486,4 +515,24 @@ func mustJSON(value any) string {
 		return "{}"
 	}
 	return string(encoded)
+}
+
+func cloneStringSliceMap(source map[string][]string) map[string][]string {
+	if len(source) == 0 {
+		return map[string][]string{}
+	}
+
+	cloned := make(map[string][]string, len(source))
+	for key, values := range source {
+		if len(values) == 0 {
+			cloned[key] = []string{}
+			continue
+		}
+
+		items := make([]string, len(values))
+		copy(items, values)
+		cloned[key] = items
+	}
+
+	return cloned
 }

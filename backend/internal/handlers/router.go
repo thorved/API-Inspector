@@ -13,6 +13,7 @@ import (
 	"api-inspector/backend/internal/db"
 	"api-inspector/backend/internal/proxy"
 	"api-inspector/backend/internal/realtime"
+	"api-inspector/backend/internal/watch"
 	"api-inspector/backend/web"
 )
 
@@ -22,16 +23,18 @@ type Handler struct {
 	store  *db.Store
 	proxy  *proxy.Service
 	hub    *realtime.Hub
+	watch  *watch.Manager
 	static *StaticHandler
 }
 
-func NewRouter(cfg config.Config, logger *zap.Logger, store *db.Store, proxyService *proxy.Service, hub *realtime.Hub) *gin.Engine {
+func NewRouter(cfg config.Config, logger *zap.Logger, store *db.Store, proxyService *proxy.Service, hub *realtime.Hub, watchManager *watch.Manager) *gin.Engine {
 	handler := &Handler{
 		config: cfg,
 		logger: logger,
 		store:  store,
 		proxy:  proxyService,
 		hub:    hub,
+		watch:  watchManager,
 		static: NewStaticHandler(web.Dist),
 	}
 
@@ -56,6 +59,9 @@ func NewRouter(cfg config.Config, logger *zap.Logger, store *db.Store, proxyServ
 		api.DELETE("/logs/:id", handler.deleteLog)
 		api.GET("/stats", handler.getStats)
 		api.GET("/events/traffic", handler.streamTraffic)
+		api.GET("/watch", handler.getWatchState)
+		api.PUT("/watch", handler.updateWatchState)
+		api.POST("/watch/requests/:id/decision", handler.resolveWatchRequest)
 	}
 
 	router.Any("/proxy/:slug/*path", handler.forwardProxy)

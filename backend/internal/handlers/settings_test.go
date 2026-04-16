@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -15,6 +16,7 @@ import (
 	"api-inspector/backend/internal/db"
 	"api-inspector/backend/internal/proxy"
 	"api-inspector/backend/internal/realtime"
+	"api-inspector/backend/internal/watch"
 )
 
 func TestGetSettingsReturnsPersistedConfig(t *testing.T) {
@@ -138,8 +140,9 @@ func newSettingsTestRouter(t *testing.T) (http.Handler, config.Config, func()) {
 	}
 
 	hub := realtime.NewHub()
+	watchManager := watch.NewManager(30*time.Second, hub)
 	proxyService := proxy.NewService(cfg, logger, store, hub)
-	router := NewRouter(cfg, logger, store, proxyService, hub)
+	router := NewRouter(cfg, logger, store, proxyService, hub, watchManager)
 
 	cleanup := func() {
 		_ = store.Close()

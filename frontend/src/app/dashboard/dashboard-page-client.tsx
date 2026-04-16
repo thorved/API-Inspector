@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import { useWorkspaceTheme } from "@/components/app-shell";
 import {
   methodOptions,
@@ -17,6 +19,8 @@ import {
   StatusBadge,
   toKeyValueRows,
   UploadedFilesPanel,
+  WatchModeCard,
+  WatchRequestsModal,
 } from "./dashboard-ui";
 
 function cx(...values: Array<string | false | null | undefined>) {
@@ -32,12 +36,17 @@ export function DashboardPageClient() {
     handleDeleteLog,
     handleLoadMore,
     handleProjectChange,
+    handleResolveWatchRequest,
     handleSelectLog,
+    handleWatchToggle,
     isClearingLogs,
     isLoading,
+    isResolvingWatchRequest,
+    isSavingWatchState,
     logs,
     method,
     nextCursor,
+    pendingWatchRequests,
     projects,
     search,
     selectedLog,
@@ -48,8 +57,23 @@ export function DashboardPageClient() {
     setStatus,
     stats,
     status,
+    watchEnabled,
+    watchTimeoutSeconds,
   } = useInspectorWorkspace({ includeTraffic: true });
   const { theme } = useWorkspaceTheme();
+  const [isWatchModalOpen, setIsWatchModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (pendingWatchRequests.length > 0) {
+      setIsWatchModalOpen(true);
+    }
+  }, [pendingWatchRequests.length]);
+
+  useEffect(() => {
+    if (pendingWatchRequests.length === 0) {
+      setIsWatchModalOpen(false);
+    }
+  }, [pendingWatchRequests]);
 
   return (
     <DashboardFrame errorMessage={errorMessage} theme={theme}>
@@ -279,12 +303,17 @@ export function DashboardPageClient() {
               <div
                 className={cx(
                   styles.inspectorSoft,
-                  "flex flex-wrap gap-3 text-sm",
+                  "flex flex-wrap items-center gap-3 text-sm",
                 )}
               >
                 <span>{stats.totalRequests} total</span>
                 <span>{stats.errorCount} errors</span>
                 <span>{Math.round(stats.averageLatencyMs)} ms avg</span>
+                {pendingWatchRequests.length ? (
+                  <span className={cx(styles.statusBadge, styles.statusError)}>
+                    {pendingWatchRequests.length} waiting
+                  </span>
+                ) : null}
                 {detail ? (
                   <button
                     className={styles.inspectorIconButton}
@@ -298,6 +327,17 @@ export function DashboardPageClient() {
                   </button>
                 ) : null}
               </div>
+            </div>
+            <div className={styles.watchModeRow}>
+              <WatchModeCard
+                enabled={watchEnabled}
+                isSaving={isSavingWatchState}
+                onOpenQueue={() => setIsWatchModalOpen(true)}
+                onToggle={(enabled) => void handleWatchToggle(enabled)}
+                pendingCount={pendingWatchRequests.length}
+                projectName={selectedProjectRecord?.name}
+                timeoutSeconds={watchTimeoutSeconds}
+              />
             </div>
           </div>
 
@@ -450,6 +490,16 @@ export function DashboardPageClient() {
           </div>
         </section>
       </div>
+      {isWatchModalOpen ? (
+        <WatchRequestsModal
+          isResolvingRequestId={isResolvingWatchRequest}
+          onApprove={(id) => void handleResolveWatchRequest(id, "approve")}
+          onClose={() => setIsWatchModalOpen(false)}
+          onDeny={(id) => void handleResolveWatchRequest(id, "deny")}
+          pending={pendingWatchRequests}
+          theme={theme}
+        />
+      ) : null}
     </DashboardFrame>
   );
 }
