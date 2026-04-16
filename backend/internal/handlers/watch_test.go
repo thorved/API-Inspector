@@ -432,6 +432,7 @@ func newWatchTestRouter(t *testing.T, timeout time.Duration) (http.Handler, *db.
 		BodyPreviewLimit:       0,
 		LogPageSize:            50,
 		UpstreamTimeoutSeconds: 600,
+		WatchTimeoutSeconds:    30,
 	})
 	if err != nil {
 		t.Fatalf("save settings: %v", err)

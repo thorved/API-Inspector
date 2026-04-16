@@ -24,7 +24,9 @@ type Config struct {
 	BodyPreviewLimit       int           `json:"bodyPreviewLimit"`
 	LogPageSize            int           `json:"logPageSize"`
 	UpstreamTimeoutSeconds int           `json:"upstreamTimeoutSeconds"`
+	WatchTimeoutSeconds    int           `json:"watchTimeoutSeconds"`
 	UpstreamTimeout        time.Duration `json:"-"`
+	WatchTimeout           time.Duration `json:"-"`
 }
 
 type ValidationError struct {
@@ -46,6 +48,7 @@ func Default() Config {
 		BodyPreviewLimit:       0,
 		LogPageSize:            50,
 		UpstreamTimeoutSeconds: 600,
+		WatchTimeoutSeconds:    30,
 	}
 	cfg.SettingsPath = DefaultSettingsPath()
 	cfg.applyDerived()
@@ -127,6 +130,8 @@ func (cfg *Config) Validate() error {
 		return ValidationError{Message: "logPageSize must be between 1 and 200"}
 	case cfg.UpstreamTimeoutSeconds < 1:
 		return ValidationError{Message: "upstreamTimeoutSeconds must be greater than zero"}
+	case cfg.WatchTimeoutSeconds < 1:
+		return ValidationError{Message: "watchTimeoutSeconds must be greater than zero"}
 	}
 
 	return nil
@@ -139,6 +144,7 @@ func (cfg *Config) normalize() {
 func (cfg *Config) applyDerived() {
 	cfg.Address = ":" + strconv.Itoa(cfg.Port)
 	cfg.UpstreamTimeout = time.Duration(cfg.UpstreamTimeoutSeconds) * time.Second
+	cfg.WatchTimeout = time.Duration(cfg.WatchTimeoutSeconds) * time.Second
 }
 
 func writeFileAtomic(path string, payload []byte, perm os.FileMode) error {

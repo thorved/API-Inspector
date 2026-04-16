@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"go.uber.org/zap"
 
@@ -51,6 +50,7 @@ func TestUpdateSettingsPersistsConfigAndRequiresRestart(t *testing.T) {
 	expectedCfg.Port = 9090
 	expectedCfg.LogPageSize = 75
 	expectedCfg.UpstreamTimeoutSeconds = 120
+	expectedCfg.WatchTimeoutSeconds = 45
 
 	payload, err := json.Marshal(expectedCfg)
 	if err != nil {
@@ -93,6 +93,9 @@ func TestUpdateSettingsPersistsConfigAndRequiresRestart(t *testing.T) {
 	if reloaded.LogPageSize != 75 {
 		t.Fatalf("expected persisted log page size 75, got %d", reloaded.LogPageSize)
 	}
+	if reloaded.WatchTimeoutSeconds != 45 {
+		t.Fatalf("expected persisted watch timeout 45, got %d", reloaded.WatchTimeoutSeconds)
+	}
 }
 
 func TestUpdateSettingsRejectsInvalidValues(t *testing.T) {
@@ -128,6 +131,7 @@ func newSettingsTestRouter(t *testing.T) (http.Handler, config.Config, func()) {
 		BodyPreviewLimit:       0,
 		LogPageSize:            50,
 		UpstreamTimeoutSeconds: 600,
+		WatchTimeoutSeconds:    30,
 	})
 	if err != nil {
 		t.Fatalf("save settings: %v", err)
@@ -140,7 +144,7 @@ func newSettingsTestRouter(t *testing.T) (http.Handler, config.Config, func()) {
 	}
 
 	hub := realtime.NewHub()
-	watchManager := watch.NewManager(30*time.Second, hub)
+	watchManager := watch.NewManager(cfg.WatchTimeout, hub)
 	proxyService := proxy.NewService(cfg, logger, store, hub)
 	router := NewRouter(cfg, logger, store, proxyService, hub, watchManager)
 

@@ -37,7 +37,8 @@ func TestLoadFromPathReadsExistingSettingsFile(t *testing.T) {
   "databasePath": "custom/data.db",
   "bodyPreviewLimit": 1024,
   "logPageSize": 25,
-  "upstreamTimeoutSeconds": 42
+  "upstreamTimeoutSeconds": 42,
+  "watchTimeoutSeconds": 18
 }
 `
 	if err := os.WriteFile(settingsPath, []byte(payload), 0o644); err != nil {
@@ -57,6 +58,9 @@ func TestLoadFromPathReadsExistingSettingsFile(t *testing.T) {
 	}
 	if cfg.UpstreamTimeout != 42*time.Second {
 		t.Fatalf("expected 42 second timeout, got %s", cfg.UpstreamTimeout)
+	}
+	if cfg.WatchTimeout != 18*time.Second {
+		t.Fatalf("expected 18 second watch timeout, got %s", cfg.WatchTimeout)
 	}
 }
 
@@ -82,7 +86,8 @@ func TestLoadFromPathRejectsInvalidValues(t *testing.T) {
   "databasePath": "data/api-inspector.db",
   "bodyPreviewLimit": 0,
   "logPageSize": 50,
-  "upstreamTimeoutSeconds": 600
+  "upstreamTimeoutSeconds": 600,
+  "watchTimeoutSeconds": 30
 }
 `
 	if err := os.WriteFile(settingsPath, []byte(payload), 0o644); err != nil {
@@ -107,6 +112,7 @@ func TestSaveDerivesAddressAndTimeout(t *testing.T) {
 		BodyPreviewLimit:       10,
 		LogPageSize:            15,
 		UpstreamTimeoutSeconds: 7,
+		WatchTimeoutSeconds:    11,
 	})
 	if err != nil {
 		t.Fatalf("expected config to save, got error: %v", err)
@@ -117,5 +123,8 @@ func TestSaveDerivesAddressAndTimeout(t *testing.T) {
 	}
 	if cfg.UpstreamTimeout != 7*time.Second {
 		t.Fatalf("expected derived timeout of 7s, got %s", cfg.UpstreamTimeout)
+	}
+	if cfg.WatchTimeout != 11*time.Second {
+		t.Fatalf("expected derived watch timeout of 11s, got %s", cfg.WatchTimeout)
 	}
 }

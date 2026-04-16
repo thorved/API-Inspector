@@ -43,7 +43,7 @@ func main() {
 	defer store.Close()
 
 	hub := realtime.NewHub()
-	watchManager := watch.NewManager(30*time.Second, hub)
+	watchManager := watch.NewManager(cfg.WatchTimeout, hub)
 	proxyService := proxy.NewService(cfg, logger, store, hub)
 
 	gin.SetMode(gin.ReleaseMode)
@@ -95,6 +95,7 @@ func printStartupSummary(cfg config.Config) {
 			"  Database file:   %s\n"+
 			"  Log page size:   %d\n"+
 			"  Body preview:    %s\n"+
+			"  Watch timeout:   %s\n"+
 			"  Upstream timeout:%s\n\n",
 		rootURL,
 		rootURL,
@@ -104,6 +105,7 @@ func printStartupSummary(cfg config.Config) {
 		displayPath(cfg.DatabasePath),
 		cfg.LogPageSize,
 		bodyPreviewLabel,
+		" "+cfg.WatchTimeout.String(),
 		" "+cfg.UpstreamTimeout.String(),
 	)
 }

@@ -154,6 +154,7 @@ export type AppSettings = {
   bodyPreviewLimit: number;
   logPageSize: number;
   upstreamTimeoutSeconds: number;
+  watchTimeoutSeconds: number;
 };
 
 export type SettingsSaveResponse = {

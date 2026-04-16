@@ -14,6 +14,7 @@ const defaultSettings: AppSettings = {
   bodyPreviewLimit: 0,
   logPageSize: 50,
   upstreamTimeoutSeconds: 600,
+  watchTimeoutSeconds: 30,
 };
 
 export function SettingsPageClient() {
@@ -99,8 +100,8 @@ export function SettingsPageClient() {
             <div className={styles.metaLabel}>Config file</div>
             <div className={styles.metaValue}>data/settings.conf</div>
             <p className={styles.metaCopy}>
-              Port, log page size, upstream timeout, and database path all live
-              in this JSON file.
+              Port, log page size, upstream timeout, watch timeout, and database
+              path all live in this JSON file.
             </p>
           </div>
         </section>
@@ -148,6 +149,26 @@ export function SettingsPageClient() {
                   }
                   type="number"
                   value={form.upstreamTimeoutSeconds}
+                />
+              </Field>
+
+              <Field
+                htmlFor="settings-watch-timeout"
+                label="Watch approval timeout (seconds)"
+              >
+                <input
+                  className={styles.field}
+                  disabled={isLoading}
+                  id="settings-watch-timeout"
+                  min={1}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      watchTimeoutSeconds: Number(event.target.value),
+                    }))
+                  }
+                  type="number"
+                  value={form.watchTimeoutSeconds}
                 />
               </Field>
             </div>
