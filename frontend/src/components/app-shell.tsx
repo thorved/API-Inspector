@@ -85,10 +85,9 @@ function AppNavbar() {
   const { theme, setTheme } = useWorkspaceTheme();
   const isDashboard = pathname.startsWith("/dashboard");
   const isProjects = pathname.startsWith("/projects");
-  const variant = isDashboard ? "dashboard" : "clean";
 
   return (
-    <nav className={styles.nav} data-theme={theme} data-variant={variant}>
+    <nav className={styles.nav} data-theme={theme}>
       <div className={styles.inner}>
         <div className={styles.leftCluster}>
           <Link className={styles.brand} href="/">
